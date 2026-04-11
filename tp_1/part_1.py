@@ -3,9 +3,11 @@
 # from tp_1.addons.functions import (
 # )
 import numpy as np
+import matplotlib.pyplot as plt
 from tp_1.addons.functions import (
     perceptron_simple,
 )
+from utils.helpers import plot_perceptron
 
 
 def tp1():
@@ -23,11 +25,22 @@ def tp1():
             [10, 10, 1],
         ]
     )
-    ent = [3, 4]
     COTA = 2000
     n = 0.1
-    print(perceptron_simple(data, n, COTA))
-    return {}
+
+    # Ejecución del perceptrón
+    w, error_min, iterations = perceptron_simple(data, n, COTA)
+
+    plot_perceptron(w, data, error_min, iterations)
+
+    return {
+        "w0": w[0],
+        "w1": w[1],
+        "w2": w[2],
+        "w": w,
+        "error_min": error_min,
+        "iterations": iterations,
+    }
 
 
 # TODO: poner print para el conj de prueba

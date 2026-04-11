@@ -414,3 +414,35 @@ def calculate_metrics(matrix):
         "precision": precision,
         "f1": f1,
     }
+
+def plot_perceptron(w, data, error_min, iterations):
+
+    # --- Lógica de Graficado Mejorada ---
+    plt.figure(figsize=(10, 7))
+
+    # Separamos los puntos por clase para identificarlos visualmente
+    clase_pos = data[data[:, -1] == 1]
+    clase_neg = data[data[:, -1] == -1]
+
+    plt.scatter(clase_pos[:, 0], clase_pos[:, 1], color='royalblue', marker='o', s=100, label='Clase 1 (Otorgado)', edgecolors='k')
+    plt.scatter(clase_neg[:, 0], clase_neg[:, 1], color='crimson', marker='x', s=100, label='Clase -1 (Rechazado)')
+
+    # Generamos la recta del hiperplano: w0 + w1*x + w2*y = 0 => y = -(w1*x + w0) / w2
+    x_min, x_max = data[:, 0].min() - 1, data[:, 0].max() + 1
+    y_min, y_max = data[:, 1].min() - 1, data[:, 1].max() + 1
+    x_vals = np.linspace(x_min, x_max, 100)
+
+    if w[2] != 0: # Evitar división por cero
+        y_vals = -(w[1] * x_vals + w[0]) / w[2]
+        plt.plot(x_vals, y_vals, color='forestgreen', lw=2, linestyle='--', label='Hiperplano de decisión')
+
+    plt.xlim(x_min, x_max)
+    plt.ylim(y_min, y_max)
+    plt.axhline(0, color='black', linewidth=1, alpha=0.3)
+    plt.axvline(0, color='black', linewidth=1, alpha=0.3)
+    plt.xlabel('Característica X1')
+    plt.ylabel('Característica X2')
+    plt.title(f'Perceptrón Simple: Separación Lineal Alcanzada\n(Error: {error_min}, Iteraciones: {iterations})')
+    plt.legend(loc='upper left')
+    plt.grid(True, linestyle='--', alpha=0.5)
+    plt.show()

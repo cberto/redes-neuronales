@@ -55,7 +55,7 @@ def perceptron_simple(data, n, COTA):
             error_min = error
             w_min = w.copy()
         i += 1
-    return w_min, error_min
+    return w_min, error_min, i
 
 def calcular_error(x, y, w, p): 
     total_error = 0
