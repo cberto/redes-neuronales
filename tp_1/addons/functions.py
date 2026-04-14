@@ -20,7 +20,7 @@ import math as Math
 
 
 # COTA es hiperparametro de cantidad de iteraciones, p es cantidad de patrones, n es tasa de aprendizaje
-def perceptron_simple(data, n, COTA):
+def perceptron_simple(data, n, COTA, b, tanh):
     iterations = 0
     p = len(data)
     y = data[:, -1]
@@ -47,7 +47,7 @@ def perceptron_simple(data, n, COTA):
         O = activacion(h)
 
         # Update the entire weight vector, not just one index
-        dw = delta_w(n, y_μ, O, x_μ)
+        dw = delta_w(n, y_μ, O, x_μ, h, b, tanh)
 
         # Sumamos el vector delta al vector de pesos elemento por elemento
         for w_i in range(len(w)):
@@ -71,14 +71,32 @@ def calcular_error(x, y, w, p):
         total_error += (y_μ - O) ** 2
     return 0.5 * total_error
 
+#β(1 − g2(h))
+def sigmoide_tanh(b, h):
+    output = Math.tanh(b * h)
+    return b * (1 - output**2)
 
-def delta_w(n, y_μ, O, x_μ):
+# g′(h) = 2βg(h)(1 − g(h)) 
+def sigmoidea_logica(b, h):
+    g_h = 1/(1+ Math.exp(-2*b*h))
+    return 2 * b * g_h * (1 - g_h)
+
+
+     
+
+
+
+def delta_w(n, y_μ, O, x_μ, h, b = None, tanh = False):
     """
     Calcula el ajuste de pesos de forma explícita.
     No es un producto de matrices, es un ESCALAR multiplicado por un VECTOR.
     """
     # 1. Calculamos el factor común (escalar): tasa de aprendizaje * error
-    factor_aprendizaje = n * (y_μ - O)
+    g_h = 1
+    if b:
+        g_h = sigmoidea_logica(b, h) if tanh else sigmoide_tanh(b, h)
+
+    factor_aprendizaje = n * (y_μ - O) * g_h
 
     # 2. Creamos un vector vacío para el resultado (mismo tamaño que las entradas)
     dw = np.zeros(len(x_μ))
@@ -89,6 +107,8 @@ def delta_w(n, y_μ, O, x_μ):
         dw[i] = factor_aprendizaje * x_μ[i]
 
     return dw
+
+
 
 
 def excitacion(x_μ, w):
