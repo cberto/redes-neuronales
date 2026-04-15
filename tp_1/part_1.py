@@ -11,6 +11,24 @@ from utils.helpers import plot_perceptron
 
 
 def tp1():
+    data_Y = np.array(
+        [
+            [-1,1,-1],
+            [1,-1,-1],
+            [-1,-1,-1],
+            [1,1,1]
+
+        ]
+    )
+    data_O_exclusivo = np.array(
+        [
+            [-1,1,1],
+            [1,-1,1],
+            [-1,-1,-1],
+            [1,1,-1]
+        ]
+    )
+
     data = np.array(
         [
             [13, 9, 1],
@@ -25,15 +43,18 @@ def tp1():
             [10, 10, 1],
         ]
     )
+
+
+
     COTA = 2000
     n = 0.1
     b = 1
     tanh = False
 
     # Ejecución del perceptrón
-    w, error_min, iterations = perceptron_simple(data, n, COTA, b, tanh)
+    w, error_min, iterations = perceptron_simple(data_O_exclusivo, n, COTA, b, tanh)
 
-    plot_perceptron(w, data, error_min, iterations)
+    plot_perceptron(w, data_O_exclusivo, error_min, iterations)
 
     return {
         "w0": w[0],
