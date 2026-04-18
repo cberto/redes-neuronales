@@ -3,7 +3,6 @@
 # from tp_1.addons.functions import (
 # )
 import numpy as np
-import matplotlib.pyplot as plt
 from tp_1.addons.functions import (
     perceptron_simple,
 )
@@ -48,11 +47,10 @@ def tp1():
 
     COTA = 2000
     n = 0.1
-    b = 1
-    tanh = False
-
-    # Ejecución del perceptrón
-    w, error_min, iterations = perceptron_simple(data_O_exclusivo, n, COTA, b, tanh)
+    # Perceptrón escalón: sin derivada de sigmoide (pasar b=None)
+    w, error_min, iterations = perceptron_simple(
+        data_O_exclusivo, n, COTA, b=None, tanh=False
+    )
 
     plot_perceptron(w, data_O_exclusivo, error_min, iterations)
 

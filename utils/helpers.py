@@ -2,6 +2,7 @@ import csv
 import math
 import json
 import numpy as np
+import matplotlib
 import matplotlib.pyplot as plt
 from scipy.interpolate import make_interp_spline
 
@@ -445,4 +446,9 @@ def plot_perceptron(w, data, error_min, iterations):
     plt.title(f'Perceptrón Simple: Separación Lineal Alcanzada\n(Error: {error_min}, Iteraciones: {iterations})')
     plt.legend(loc='upper left')
     plt.grid(True, linestyle='--', alpha=0.5)
-    plt.show()
+    fig = plt.gcf()
+    backend = matplotlib.get_backend().lower()
+    if backend in ("agg", "pdf", "svg", "template"):
+        plt.close(fig)
+    else:
+        plt.show()
