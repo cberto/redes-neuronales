@@ -1,20 +1,38 @@
-#make
-init: install-venv install-deps
+# macOS / Linux (por defecto). En Windows: make -f Makefile.win init
+# `make init` = venv + requirements-runtime.txt + ejecutar main.py.
+# Dependencias fijadas del curso (kaggle, etc.): make deps-full
+.PHONY: init install-venv install-deps deps-full run update-deps
 
-PYTHON=venv\Scripts\python.exe
-PIP=venv\Scripts\pip.exe
+init: install-venv install-deps run
+
+PYTHON=venv/bin/python
+PIP=venv/bin/pip
 
 install-venv:
-	@echo "Instalando entorno..."
-	python -m venv venv
-	@echo "Entorno creado."
+	@if [ -d venv ]; then \
+		echo "venv ya existe."; \
+	else \
+		echo "Creando venv..."; \
+		python3 -m venv venv; \
+		echo "Listo."; \
+	fi
 
-install-deps: requirements.txt
-	@echo "Instalando dependencias..."
+install-deps: requirements-runtime.txt install-venv
+	@echo "Instalando dependencias de ejecución..."
+	$(PIP) install --upgrade pip
+	$(PIP) install -r requirements-runtime.txt
+	@echo "Listo. (Para instalar todo requirements.txt: make deps-full)"
+
+deps-full: install-venv
+	@echo "Instalando requirements.txt completo..."
 	$(PIP) install -r requirements.txt
-	@echo "Dependencias instaladas."
+	@echo "Listo."
+
+run:
+	@echo "Ejecutando main.py..."
+	MPLBACKEND=Agg $(PYTHON) main.py
 
 update-deps:
-	@echo "Actualizando dependencias..."
+	@echo "Actualizando requirements.txt..."
 	$(PIP) freeze > requirements.txt
-	@echo "Dependencias actualizadas."
+	@echo "Hecho."
