@@ -21,6 +21,7 @@ import math as Math
 
 # COTA es hiperparametro de cantidad de iteraciones, p es cantidad de patrones, n es tasa de aprendizaje
 def perceptron_simple(data, n, COTA, b, tanh):
+    data = np.asanyarray(data)
     iterations = 0
     p = len(data)
     y = data[:, -1]
@@ -60,6 +61,12 @@ def perceptron_simple(data, n, COTA, b, tanh):
         iterations += 1
     return w_min, error_min, iterations
 
+# sample Array 2 posiciones
+def evaluar_perceptron_simple(x, w):
+    x_μ = np.insert(x, 0, 1)  # agrega un 1 al inicio, para calcular hacer x0 * w0
+    h = excitacion(x_μ, w)
+    O = activacion(h)
+    return O
 
 def calcular_error(x, y, w, p):
     total_error = 0

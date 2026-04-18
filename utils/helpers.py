@@ -158,6 +158,8 @@ def save_json(file_path, data, encoding="utf-8"):
 
 
 def split_test_data(data, test_size=0.2):
+    if isinstance(data, np.ndarray):
+        data = data.tolist()
     length = len(data)
     parts = math.floor(length * test_size)
     set_length = length // parts - 1
@@ -415,6 +417,14 @@ def calculate_metrics(matrix):
         "f1": f1,
     }
 
+
+def cargar_tp1_ej2(px, py) -> np.ndarray:
+    """Une X (3 cols) e y (1 col) fila a fila → array (n, 4)."""
+    x = np.loadtxt(px)
+    y = np.loadtxt(py).reshape(-1, 1)
+    if x.shape[0] != y.shape[0]:
+        raise ValueError(f"Filas distintas: X={x.shape[0]}, y={y.shape[0]}")
+    return np.hstack([x, y])
 
 def plot_perceptron(w, data, error_min, iterations):
 
