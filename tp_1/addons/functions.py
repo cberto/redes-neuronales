@@ -16,11 +16,14 @@
 # i = i + 1
 # end
 import numpy as np
+import numpy as np
+import numpy as np
+import numpy as np
 import math as Math
 
 
 # COTA es hiperparametro de cantidad de iteraciones, p es cantidad de patrones, n es tasa de aprendizaje
-def perceptron_simple(data, n, COTA, b, tanh):
+def perceptron_simple(data, n, COTA, b, tanh, modo="activado"):
     data = np.asanyarray(data)
     iterations = 0
     p = len(data)
@@ -45,7 +48,8 @@ def perceptron_simple(data, n, COTA, b, tanh):
         x_μ = x[pos]
         y_μ = y[pos]
         h = excitacion(x_μ, w)
-        O = activacion(h)
+        O = activacion(h,modo)
+
 
         # Update the entire weight vector, not just one index
         dw = delta_w(n, y_μ, O, x_μ, h, b, tanh)
@@ -54,7 +58,7 @@ def perceptron_simple(data, n, COTA, b, tanh):
         for w_i in range(len(w)):
             w[w_i] = w[w_i] + dw[w_i]
 
-        error = calcular_error(x, y, w, p)
+        error = calcular_error(x, y, w, p, modo)
         if error < error_min:
             error_min = error
             w_min = w.copy()
@@ -62,19 +66,19 @@ def perceptron_simple(data, n, COTA, b, tanh):
     return w_min, error_min, iterations
 
 # sample Array 2 posiciones
-def evaluar_perceptron_simple(x, w):
+def evaluar_perceptron_simple(x, w, modo="activado"):
     x_μ = np.insert(x, 0, 1)  # agrega un 1 al inicio, para calcular hacer x0 * w0
     h = excitacion(x_μ, w)
-    O = activacion(h)
+    O = activacion(h, modo)
     return O
 
-def calcular_error(x, y, w, p):
+def calcular_error(x, y, w, p, modo="activado"):
     total_error = 0
     for pos in range(p):
         x_μ = x[pos]
         y_μ = y[pos]
         h = excitacion(x_μ, w)  # calcular excitacion para el patron i
-        O = activacion(h)
+        O = activacion(h, modo)
         total_error += (y_μ - O) ** 2
     return 0.5 * total_error
 
@@ -124,11 +128,15 @@ def excitacion(x_μ, w):
     return h
 
 
-def activacion(h):
+def activacion(h, modo="activado"):
     """Activación O = signo(h) para el perceptrón (±1, 0 si h == 0)."""
     # Si h es positivo, la neurona se activa (1)
+
+    if modo != "activado":
+        return h
     if h > 0:
         return 1.0
+        
     # Si h es negativo, la neurona se inhibe (-1)
     elif h < 0:
         return -1.0
