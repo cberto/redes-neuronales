@@ -1,7 +1,7 @@
 # macOS / Linux (por defecto). En Windows: make -f Makefile.win init
 # `make init` = venv + requirements-runtime.txt + ejecutar main.py.
 # Dependencias fijadas del curso (kaggle, etc.): make deps-full
-.PHONY: init install-venv install-deps deps-full run update-deps
+.PHONY: init install-venv install-deps deps-full run ej2 update-deps
 
 init: install-venv install-deps run
 
@@ -31,6 +31,10 @@ deps-full: install-venv
 run:
 	@echo "Ejecutando main.py..."
 	MPLBACKEND=Agg $(PYTHON) main.py
+
+# Solo ej.2 (regresión con TXT), sin tocar tp_1/part_1.py — ver ej2_demo.py
+ej2:
+	MPLBACKEND=Agg $(PYTHON) ej2_demo.py
 
 update-deps:
 	@echo "Actualizando requirements.txt..."

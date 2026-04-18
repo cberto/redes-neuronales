@@ -1,5 +1,5 @@
 # Windows — usar: make -f Makefile.win init
-.PHONY: init install-venv install-deps deps-full run update-deps
+.PHONY: init install-venv install-deps deps-full run ej2 update-deps
 
 init: install-venv install-deps run
 
@@ -21,6 +21,9 @@ deps-full: install-venv
 run:
 	@echo Ejecutando main.py...
 	set MPLBACKEND=Agg&& $(PYTHON) main.py
+
+ej2:
+	set MPLBACKEND=Agg&& $(PYTHON) ej2_demo.py
 
 update-deps:
 	@echo Actualizando requirements.txt...
