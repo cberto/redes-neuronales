@@ -71,22 +71,20 @@ def calcular_error(x, y, w, p):
         total_error += (y_μ - O) ** 2
     return 0.5 * total_error
 
-#β(1 − g2(h))
+
+# β(1 − g2(h))
 def sigmoide_tanh(b, h):
     output = Math.tanh(b * h)
     return b * (1 - output**2)
 
-# g′(h) = 2βg(h)(1 − g(h)) 
+
+# g′(h) = 2βg(h)(1 − g(h))
 def sigmoidea_logica(b, h):
-    g_h = 1/(1+ Math.exp(-2*b*h))
+    g_h = 1 / (1 + Math.exp(-2 * b * h))
     return 2 * b * g_h * (1 - g_h)
 
 
-     
-
-
-
-def delta_w(n, y_μ, O, x_μ, h, b = None, tanh = False):
+def delta_w(n, y_μ, O, x_μ, h, b=None, tanh=False):
     """
     Calcula el ajuste de pesos de forma explícita.
     No es un producto de matrices, es un ESCALAR multiplicado por un VECTOR.
@@ -107,8 +105,6 @@ def delta_w(n, y_μ, O, x_μ, h, b = None, tanh = False):
         dw[i] = factor_aprendizaje * x_μ[i]
 
     return dw
-
-
 
 
 def excitacion(x_μ, w):
