@@ -16,9 +16,6 @@
 # i = i + 1
 # end
 import numpy as np
-import numpy as np
-import numpy as np
-import numpy as np
 import math as Math
 
 
@@ -50,7 +47,6 @@ def perceptron_simple(data, n, COTA, b, tanh):
         h = excitacion(x_μ, w)
         O = activacion(h, b, tanh)
 
-
         # Update the entire weight vector, not just one index
         dw = delta_w(n, y_μ, O, x_μ, h, b, tanh)
 
@@ -72,6 +68,7 @@ def evaluar_perceptron_simple(x, w, b=None, tanh=False):
     O = activacion(h, b, tanh)
     return O
 
+
 def calcular_error(x, y, w, p, b=None, tanh=False):
     total_error = 0
     for pos in range(p):
@@ -88,14 +85,17 @@ def sigmoide_tanh_d(b, h):
     g_h = sigmoide_tanh(b, h)
     return b * (1 - g_h**2)
 
+
 # g(h) = tanh(βh)
 def sigmoide_tanh(b, h):
     return Math.tanh(b * h)
+
 
 # g′(h) = 2βg(h)(1 − g(h))
 def sigmoidea_logica_d(b, h):
     g_h = sigmoidea_logica(b, h)
     return 2 * b * g_h * (1 - g_h)
+
 
 # g(h) = 1 / (1 + e^(-2βh))
 def sigmoidea_logica(b, h):
@@ -141,7 +141,7 @@ def activacion(h, b=None, tanh_mode=False):
     # Si no hay b, es el perceptrón simple original (función escalón)
     # Si h es positivo, la neurona se activa (1)
     if h > 0:
-        return 1.0        
+        return 1.0
     # Si h es negativo, la neurona se inhibe (-1)
     elif h < 0:
         return -1.0

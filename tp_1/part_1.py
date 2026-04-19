@@ -61,15 +61,15 @@ def tp1():
 
     result_pt2 = []
     config = {
-        "lineal": {"COTA": 8000, "n": 0.1, "b": None, "tanh": False},
-        "tanh": {"COTA": 8000, "n": 0.1, "b": 0.5, "tanh": True},
-        "logis": {"COTA": 8000, "n": 0.1, "b": 0.5, "tanh": False},
+        "lineal": {"COTA": 1000, "n": 0.1, "b": None, "tanh": False},
+        "tanh": {"COTA": 1000, "n": 0.1, "b": 0.5, "tanh": True},
+        "logis": {"COTA": 1000, "n": 0.1, "b": 0.5, "tanh": False},
     }
 
     result_test = {"lineal": [], "tanh": [], "logis": []}
     for type in result_test.keys():
         is_logis = type == "logis"
-        
+
         # Rango de la función de activación
         val_min = 0.0 if is_logis else -1.0
 
@@ -77,12 +77,12 @@ def tp1():
         for i in range(len(datos_ent)):
             # Si supera el umbral es 1, sino es el mínimo del rango
             clase_binaria = 1.0 if datos_sal[i] >= umbral_original else val_min
-            
+
             fila = []
             fila.extend(datos_ent[i])  # Agregamos las características
             fila.append(clase_binaria)
             data_pt2.append(fila)
-                
+
         test, train = split_test_data(data_pt2)
         w, error, iter = perceptron_simple(
             train,
@@ -105,7 +105,7 @@ def tp1():
         # x1, x2, x3, clase, clase_predicha
         deseada = 3
         obtenida = 4
-        
+
         condicion = 1.0
         val_medio = 0.5 if is_logis else 0.0
 
