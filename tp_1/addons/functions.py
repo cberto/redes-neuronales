@@ -23,7 +23,7 @@ import math as Math
 
 
 # COTA es hiperparametro de cantidad de iteraciones, p es cantidad de patrones, n es tasa de aprendizaje
-def perceptron_simple(data, n, COTA, b, tanh, modo="activado"):
+def perceptron_simple(data, n, COTA, b, tanh):
     data = np.asanyarray(data)
     iterations = 0
     p = len(data)
@@ -48,7 +48,7 @@ def perceptron_simple(data, n, COTA, b, tanh, modo="activado"):
         x_μ = x[pos]
         y_μ = y[pos]
         h = excitacion(x_μ, w)
-        O = activacion(h,modo)
+        O = activacion(h)
 
 
         # Update the entire weight vector, not just one index
@@ -58,27 +58,27 @@ def perceptron_simple(data, n, COTA, b, tanh, modo="activado"):
         for w_i in range(len(w)):
             w[w_i] = w[w_i] + dw[w_i]
 
-        error = calcular_error(x, y, w, p, modo)
+        error = calcular_error(x, y, w, p)
         if error < error_min:
             error_min = error
             w_min = w.copy()
         iterations += 1
     return w_min, error_min, iterations
 
-# sample Array 2 posiciones
-def evaluar_perceptron_simple(x, w, modo="activado"):
-    x_μ = np.insert(x, 0, 1)  # agrega un 1 al inicio, para calcular hacer x0 * w0
+
+def evaluar_perceptron_simple(x, w):
+    x_μ = np.insert(x, 0, 1)  # agrega un 1 al inicio, para hacer x0 * w0
     h = excitacion(x_μ, w)
-    O = activacion(h, modo)
+    O = activacion(h)
     return O
 
-def calcular_error(x, y, w, p, modo="activado"):
+def calcular_error(x, y, w, p):
     total_error = 0
     for pos in range(p):
         x_μ = x[pos]
         y_μ = y[pos]
         h = excitacion(x_μ, w)  # calcular excitacion para el patron i
-        O = activacion(h, modo)
+        O = activacion(h)
         total_error += (y_μ - O) ** 2
     return 0.5 * total_error
 
@@ -96,22 +96,16 @@ def sigmoidea_logica(b, h):
 
 
 def delta_w(n, y_μ, O, x_μ, h, b=None, tanh=False):
-    """
-    Calcula el ajuste de pesos de forma explícita.
-    No es un producto de matrices, es un ESCALAR multiplicado por un VECTOR.
-    """
-    # 1. Calculamos el factor común (escalar): tasa de aprendizaje * error
     g_h = 1
     if b:
         g_h = sigmoidea_logica(b, h) if tanh else sigmoide_tanh(b, h)
 
     factor_aprendizaje = n * (y_μ - O) * g_h
 
-    # 2. Creamos un vector vacío para el resultado (mismo tamaño que las entradas)
+    # Creamos un vector vacío para el resultado
     dw = np.zeros(len(x_μ))
 
-    # 3. Multiplicamos el factor por cada componente de la entrada x_μ
-    # Esto nos da el ajuste individual para cada peso w_j
+    # Multiplicamos el factor por cada componente de la entrada x_μ
     for i in range(len(x_μ)):
         dw[i] = factor_aprendizaje * x_μ[i]
 
@@ -128,15 +122,11 @@ def excitacion(x_μ, w):
     return h
 
 
-def activacion(h, modo="activado"):
+def activacion(h):
     """Activación O = signo(h) para el perceptrón (±1, 0 si h == 0)."""
     # Si h es positivo, la neurona se activa (1)
-
-    if modo != "activado":
-        return h
     if h > 0:
-        return 1.0
-        
+        return 1.0        
     # Si h es negativo, la neurona se inhibe (-1)
     elif h < 0:
         return -1.0

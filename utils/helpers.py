@@ -197,19 +197,21 @@ def split_test_data(data, test_size=0.2):
     return test, train
 
 
-def confusion_matrix(data, concepto, prediction_column, condicion_cumplida):
+def confusion_matrix(
+    data, concepto, prediction_column, condicion_cumplida, val_medio=0.5
+):
     tp = 0
     tn = 0
     fp = 0
     fn = 0
     for row in data:
         if row[concepto] == condicion_cumplida:
-            if row[prediction_column] > 0.5:
+            if row[prediction_column] > val_medio:
                 tp += 1
             else:
                 fn += 1
         else:
-            if row[prediction_column] > 0.5:
+            if row[prediction_column] > val_medio:
                 fp += 1
             else:
                 tn += 1
@@ -418,13 +420,15 @@ def calculate_metrics(matrix):
     }
 
 
-def cargar_tp1_ej2(px, py) -> np.ndarray:
-    """Une X (3 cols) e y (1 col) fila a fila → array (n, 4)."""
-    x = np.loadtxt(px)
-    y = np.loadtxt(py).reshape(-1, 1)
-    if x.shape[0] != y.shape[0]:
-        raise ValueError(f"Filas distintas: X={x.shape[0]}, y={y.shape[0]}")
-    return np.hstack([x, y])
+def cargar_txt(file_path):
+    try:
+        with open(file_path, "r", encoding="utf-8") as file:
+            data = file.read().splitlines()
+        return data
+    except Exception as e:
+        print(f"Error al leer el archivo: {e}")
+        return []
+
 
 def plot_perceptron(w, data, error_min, iterations):
 
