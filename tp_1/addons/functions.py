@@ -20,7 +20,7 @@ import math as Math
 
 
 # COTA es hiperparametro de cantidad de iteraciones, p es cantidad de patrones, n es tasa de aprendizaje
-def perceptron_simple(data, n, COTA, b, tanh_mode=False):
+def perceptron_simple(data, n, COTA, b, tanh_mode=False, act=None):
     data = np.asanyarray(data)
     iterations = 0
     p = len(data)
@@ -45,7 +45,7 @@ def perceptron_simple(data, n, COTA, b, tanh_mode=False):
         x_μ = x[pos]
         y_μ = y[pos]
         h = excitacion(x_μ, w)
-        O = activacion(h, b, tanh_mode)
+        O = activacion(h, b, tanh_mode, act)
 
         # Update the entire weight vector, not just one index
         dw = delta_w(n, y_μ, O, x_μ, h, b, tanh_mode)
@@ -54,7 +54,7 @@ def perceptron_simple(data, n, COTA, b, tanh_mode=False):
         for w_i in range(len(w)):
             w[w_i] = w[w_i] + dw[w_i]
 
-        error = calcular_error(x, y, w, p, b, tanh_mode)
+        error = calcular_error(x, y, w, p, b, tanh_mode, act)
         if error < error_min:
             error_min = error
             w_min = w.copy()
@@ -62,20 +62,20 @@ def perceptron_simple(data, n, COTA, b, tanh_mode=False):
     return w_min, error_min, iterations
 
 
-def evaluar_perceptron_simple(x, w, b=None, tanh_mode=False):
+def evaluar_perceptron_simple(x, w, b=None, tanh_mode=False, act=None):
     x_μ = np.insert(x, 0, 1)  # agrega un 1 al inicio, para hacer x0 * w0
     h = excitacion(x_μ, w)
-    O = activacion(h, b, tanh_mode)
+    O = activacion(h, b, tanh_mode, act)
     return O
 
 
-def calcular_error(x, y, w, p, b=None, tanh_mode=False):
+def calcular_error(x, y, w, p, b=None, tanh_mode=False, act=None):
     total_error = 0
     for pos in range(p):
         x_μ = x[pos]
         y_μ = y[pos]
         h = excitacion(x_μ, w)  # calcular excitacion para el patron i
-        O = activacion(h, b, tanh_mode)
+        O = activacion(h, b, tanh_mode, act)
         total_error += (y_μ - O) ** 2
     return 0.5 * total_error
 
@@ -133,7 +133,10 @@ def excitacion(x_μ, w):
     return h
 
 
-def activacion(h, b=None, tanh_mode=False):
+def activacion(h, b=None, tanh_mode=False, act=None):
+    # TODO: hacer la funcion para que resuelva return h
+    if act == "lineal":
+        return h
     """Activación según el tipo de perceptrón."""
     # Si hay parámetro b, usamos la función no lineal continua
     if b is not None:

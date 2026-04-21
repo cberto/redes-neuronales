@@ -27,7 +27,7 @@ def tp1():
 
     COTA = 2000
     n = 0.1
-    b = 1
+    b = None
     tanh = False
 
     result_pt1 = []
@@ -57,30 +57,53 @@ def tp1():
 
     # Determinamos un umbral para separar clases en los datos originales
     # Si el valor de salida es mayor al promedio, lo consideramos 'OTORGADO' (1.0)
-    umbral_original = np.mean(datos_sal)
 
     result_pt2 = []
     config = {
-        "lineal": {"COTA": 1000, "n": 0.1, "b": None, "tanh_mode": False},
-        "tanh_mode": {"COTA": 1000, "n": 0.1, "b": 0.5, "tanh_mode": True},
-        "logis": {"COTA": 1000, "n": 0.1, "b": 0.5, "tanh_mode": False},
+        "lineal": {
+            "COTA": 1000,
+            "n": 0.1,
+            "activation": "lineal",
+            "b": None,
+            "tanh_mode": False,
+        },
+        "tanh_mode": {
+            "COTA": 1000,
+            "n": 0.1,
+            "activation": None,
+            "b": 0.5,
+            "tanh_mode": True,
+        },
+        "logis": {
+            "COTA": 1000,
+            "n": 0.1,
+            "activation": None,
+            "b": 0.5,
+            "tanh_mode": False,
+        },
     }
+    # reescalar valores a t para 0-1
+    # logi -1 - 1
 
     result_test = {"lineal": [], "tanh_mode": [], "logis": []}
     for type in result_test.keys():
         is_logis = type == "logis"
 
-        # Rango de la función de activación
-        val_min = 0.0 if is_logis else -1.0
-
         data_pt2 = []
+        min = np.min(datos_sal)
+        max = np.max(datos_sal)
+        range_min = 0 if is_logis else -1
+        range_max = 1
         for i in range(len(datos_ent)):
             # Si supera el umbral es 1, sino es el mínimo del rango
-            clase_binaria = 1.0 if datos_sal[i] >= umbral_original else val_min
+
+            scaled = (datos_sal[i] - min) / (max - min) * (
+                range_max - range_min
+            ) + range_min
 
             fila = []
             fila.extend(datos_ent[i])  # Agregamos las características
-            fila.append(clase_binaria)
+            fila.append(scaled)
             data_pt2.append(fila)
 
         test, train = split_test_data(data_pt2)
@@ -89,10 +112,13 @@ def tp1():
         COTA = config[type]["COTA"]
         b = config[type]["b"]
         tanh_mode = config[type]["tanh_mode"]
-        w, error, iter = perceptron_simple(train, n, COTA, b, tanh_mode)
+        activacion = config[type]["activation"]
+        w, error, iter = perceptron_simple(train, n, COTA, b, tanh_mode, activacion)
 
         for i in range(len(test)):
-            tested = evaluar_perceptron_simple(test[i][:-1], w, b, tanh_mode)
+            tested = evaluar_perceptron_simple(
+                test[i][:-1], w, b, tanh_mode, activacion
+            )
 
             copy_test = test[i].copy()
             copy_test.append(tested)
