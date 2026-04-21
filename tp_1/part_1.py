@@ -61,12 +61,12 @@ def tp1():
 
     result_pt2 = []
     config = {
-        "lineal": {"COTA": 1000, "n": 0.1, "b": None, "tanh": False},
-        "tanh": {"COTA": 1000, "n": 0.1, "b": 0.5, "tanh": True},
-        "logis": {"COTA": 1000, "n": 0.1, "b": 0.5, "tanh": False},
+        "lineal": {"COTA": 1000, "n": 0.1, "b": None, "tanh_mode": False},
+        "tanh_mode": {"COTA": 1000, "n": 0.1, "b": 0.5, "tanh_mode": True},
+        "logis": {"COTA": 1000, "n": 0.1, "b": 0.5, "tanh_mode": False},
     }
 
-    result_test = {"lineal": [], "tanh": [], "logis": []}
+    result_test = {"lineal": [], "tanh_mode": [], "logis": []}
     for type in result_test.keys():
         is_logis = type == "logis"
 
@@ -84,17 +84,15 @@ def tp1():
             data_pt2.append(fila)
 
         test, train = split_test_data(data_pt2)
-        w, error, iter = perceptron_simple(
-            train,
-            config[type]["n"],
-            config[type]["COTA"],
-            config[type]["b"],
-            config[type]["tanh"],
-        )
+
+        n = config[type]["n"]
+        COTA = config[type]["COTA"]
+        b = config[type]["b"]
+        tanh_mode = config[type]["tanh_mode"]
+        w, error, iter = perceptron_simple(train, n, COTA, b, tanh_mode)
+
         for i in range(len(test)):
-            tested = evaluar_perceptron_simple(
-                test[i][:-1], w, config[type]["b"], config[type]["tanh"]
-            )
+            tested = evaluar_perceptron_simple(test[i][:-1], w, b, tanh_mode)
 
             copy_test = test[i].copy()
             copy_test.append(tested)
