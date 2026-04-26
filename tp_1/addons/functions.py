@@ -26,7 +26,6 @@ def perceptron_simple(data, n, COTA, b, tanh_mode=False):
     p = len(data)
     y = data[:, -1]
 
-    # Agregamos manualmente el "1" del bias a cada entrada x
     # Si x era [13, 9], ahora será [1, 13, 9]
     x_raw = data[:, :-1]
     x = np.ones((p, x_raw.shape[1] + 1))
@@ -47,7 +46,7 @@ def perceptron_simple(data, n, COTA, b, tanh_mode=False):
         h = excitacion(x_μ, w)
         O = activacion(h, b, tanh_mode)
 
-        # Update the entire weight vector, not just one index
+        # Actualizar pesos usando la función delta_w
         dw = delta_w(n, y_μ, O, x_μ, h, b, tanh_mode)
 
         # Sumamos el vector delta al vector de pesos elemento por elemento
@@ -69,46 +68,46 @@ def evaluar_perceptron_simple(x, w, b=None, tanh_mode=False):
     return O
 
 
-def calcular_error(x, y, w, p, b=None, tanh_mode=False):
+def calcular_error(x, y, w, p, β=None, tanh_mode=False):
     total_error = 0
     for pos in range(p):
         x_μ = x[pos]
         y_μ = y[pos]
         h = excitacion(x_μ, w)  # calcular excitacion para el patron i
-        O = activacion(h, b, tanh_mode)
+        O = activacion(h, β, tanh_mode)
         total_error += (y_μ - O) ** 2
     return 0.5 * total_error
 
 
 # g′(h) = β(1 − g(h)^2)
-def sigmoide_tanh_derivada(b, h):
-    g_h = sigmoide_tanh(b, h)
-    return b * (1 - g_h**2)
+def sigmoide_tanh_derivada(β, h):
+    g_h = sigmoide_tanh(β, h)
+    return β * (1 - g_h**2)
 
 
 # g(h) = tanh(βh)
-def sigmoide_tanh(b, h):
-    return Math.tanh(b * h)
+def sigmoide_tanh(β, h):
+    return Math.tanh(β * h)
 
 
 # g′(h) = 2βg(h)(1 − g(h))
-def sigmoidea_logica_derivada(b, h):
-    g_h = sigmoidea_logica(b, h)
-    return 2 * b * g_h * (1 - g_h)
+def sigmoidea_logica_derivada(β, h):
+    g_h = sigmoidea_logica(β, h)         
+    return 2 * β * g_h * (1 - g_h)
 
 
 # g(h) = 1 / (1 + e^(-2βh))
-def sigmoidea_logica(b, h):
-    return 1 / (1 + Math.exp(-2 * b * h))
+def sigmoidea_logica(β, h):
+    return 1 / (1 + Math.exp(-2 * β * h))
 
 
-def delta_w(n, y_μ, O, x_μ, h, b=None, tanh_mode=False):
+def delta_w(n, y_μ, O, x_μ, h, β=None, tanh_mode=False):
     g_h_d = 1
-    if b:
+    if β is not None:
         g_h_d = (
-            sigmoide_tanh_derivada(b, h)
+            sigmoide_tanh_derivada(β, h)
             if tanh_mode
-            else sigmoidea_logica_derivada(b, h)
+            else sigmoidea_logica_derivada(β, h)
         )
 
     factor_aprendizaje = n * (y_μ - O) * g_h_d
@@ -133,12 +132,12 @@ def excitacion(x_μ, w):
     return h
 
 
-def activacion(h, b=None, tanh_mode=False):
+def activacion(h, β=None, tanh_mode=False):
     """Activación según el tipo de perceptrón."""
-    # Si hay parámetro b, usamos la función no lineal continua
-    if b is not None:
-        return sigmoide_tanh(b, h) if tanh_mode else sigmoidea_logica(b, h)
-    # Si no hay b, es el perceptrón simple original (función escalón)
+    # Si hay parámetro β, usamos la función no lineal continua
+    if β is not None:
+        return sigmoide_tanh(β, h) if tanh_mode else sigmoidea_logica(β, h)
+    # Si no hay β, es el perceptrón simple original (función escalón)
     # Si h es positivo, la neurona se activa (1)
     if h > 0:
         return 1.0
