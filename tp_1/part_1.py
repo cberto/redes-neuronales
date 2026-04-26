@@ -33,7 +33,7 @@ def tp1():
     result_pt1 = []
     for data in [y, xor]:
         w, error_min, iterations = perceptron_simple(data["data"], n, COTA, b, tanh)
-        # plot_perceptron(w, data["data"], error_min, iterations)
+        plot_perceptron(w, data["data"], error_min, iterations)
         result_pt1.append(
             {
                 "type": data["type"],
