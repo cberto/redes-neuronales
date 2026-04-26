@@ -1,6 +1,7 @@
 import csv
 import math
 import json
+from matplotlib.pylab import shuffle
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.interpolate import make_interp_spline
@@ -157,9 +158,12 @@ def save_json(file_path, data, encoding="utf-8"):
         return []
 
 
-def split_test_data(data, test_size=0.2):
+def split_test_data(data, shuffle_data=False, test_size=0.2):
     if isinstance(data, np.ndarray):
         data = data.tolist()
+    # Mezclar los datos para asegurar representatividad de clases
+    if shuffle_data:
+        np.random.shuffle(data)
     length = len(data)
     parts = math.floor(length * test_size)
     set_length = length // parts - 1
@@ -205,6 +209,7 @@ def confusion_matrix(
     fp = 0
     fn = 0
     for row in data:
+        print(row[concepto], row[prediction_column])
         if row[concepto] == condicion_cumplida:
             if row[prediction_column] > val_medio:
                 tp += 1

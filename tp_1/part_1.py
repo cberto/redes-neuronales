@@ -61,7 +61,7 @@ def tp1():
     result_pt2 = []
     config = {
         "lineal": {
-            "COTA": 1000,
+            "COTA": 5000,
             "n": 0.1,
             "activation": "lineal",
             "b": None,
@@ -106,7 +106,7 @@ def tp1():
             fila.append(scaled)
             data_pt2.append(fila)
 
-        test, train = split_test_data(data_pt2)
+        test, train = split_test_data(data_pt2, shuffle_data=True)
 
         n = config[type]["n"]
         COTA = config[type]["COTA"]
@@ -132,7 +132,7 @@ def tp1():
 
         condicion = 1.0
         val_medio = 0.5 if is_logis else 0.0
-
+        
         matrix, _, str_matrix = confusion_matrix(
             result_test[type], deseada, obtenida, condicion, val_medio
         )
