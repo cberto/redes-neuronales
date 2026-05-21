@@ -81,7 +81,8 @@ def perceptron_multicapa(data, n, COTA, β, layers=[], tanh_mode=False, act=None
     x_μ = None
     y_μ = None
     actual_layer = 0
-    # error = 1
+    w_min = []
+    error_costo_total = 0
     error = float("inf")
     while error > 0 and iterations < COTA:
         # 2. Seleccionar un patrón al azar: V_i^0 = ξ_i^μ
@@ -147,11 +148,23 @@ def perceptron_multicapa(data, n, COTA, β, layers=[], tanh_mode=False, act=None
                 # Para cada valor 'j' que viene de la capa anterior (origen de la conexión)
                 for j in range(len(V[m])):
                     weights[m][i][j] += n * deltas[m][i] * V[m][j]
+                    
+        error_costo_total = error_costo(y, V)
+        if error_costo_total <= error:
+            error = error_costo_total
+            iterations += 1
+            w_min = weights.copy()
 
-        iterations += 1
+    return w_min, error, iterations
 
-    print(V)
-
+def error_costo(ejemplos, activaciones):
+    p = len(ejemplos)
+    activacion_salida = activaciones[-1]
+    suma = 0.0
+    for u in ejemplos:
+        for O_i in activacion_salida:
+            suma += (u - O_i)**2        
+    return 0.5 * suma
 
 def delta_signal(β, h, y_deseada, v_obtenido):
     return sigmoide_tanh_derivada(β, h) * (y_deseada - v_obtenido)
