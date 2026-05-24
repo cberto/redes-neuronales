@@ -497,3 +497,25 @@ def plot_perceptron(w, data, error_min, iterations):
     plt.legend(loc="upper left")
     plt.grid(True, linestyle="--", alpha=0.5)
     plt.show()
+
+
+def join_group_of_lists(list, group_size):
+    len_list = len(list) // group_size
+    items = []
+    item = []
+    for j in range(len_list):
+        len_item = len(list[j])
+        for s in range(group_size):
+            for i in range(len_item):
+                value = list[j * group_size + s][i]
+                item.append(value)
+        items.append(item)
+        item = []
+    return items
+
+def what_number_is(bits35, patrones_referencia):
+    for i, patron in enumerate(patrones_referencia):
+        if np.array_equal(bits35, patron):
+            return i
+    return -1
+    
