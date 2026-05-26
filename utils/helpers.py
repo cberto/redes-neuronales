@@ -513,9 +513,21 @@ def join_group_of_lists(list, group_size):
         item = []
     return items
 
+
 def what_number_is(bits35, patrones_referencia):
     for i, patron in enumerate(patrones_referencia):
         if np.array_equal(bits35, patron):
             return i
     return -1
-    
+
+
+def outputs_multicapa(size, max=1, min=-1):
+    outputs = []
+    for i in range(size):
+        item = []
+        for j in range(size):
+            item.append(max if i == j else min)
+        outputs.append(item)
+    return outputs
+
+

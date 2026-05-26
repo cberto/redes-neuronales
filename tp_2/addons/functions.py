@@ -64,7 +64,7 @@ def perceptron_multicapa(data, n, COTA, β, layers=[], tanh_mode=False):
     data = np.asanyarray(data)
     iterations = 0
     p = len(data)
-    
+
     # Tomamos tantas columnas de salida como indique la última capa
     num_outputs = layers[-1]
     y = data[:, -num_outputs:]
@@ -79,7 +79,7 @@ def perceptron_multicapa(data, n, COTA, β, layers=[], tanh_mode=False):
     for i in range(len(layers) - 1):
         # Matriz de (nodos siguiente) x (nodos actuales + w0)
         shape = (layers[i + 1], layers[i] + 1)
-        w_m = np.random.uniform(-0.5, 0.5, shape)
+        w_m = np.random.uniform(-0.1, 0.1, shape) # Pesos más pequeños para estabilidad
         weights.append(w_m)
 
     x_μ = None
@@ -160,16 +160,38 @@ def perceptron_multicapa(data, n, COTA, β, layers=[], tanh_mode=False):
                 # Para cada valor 'j' que viene de la capa anterior (origen de la conexión)
                 for j in range(len(V[m])):
                     weights[m][i][j] += n * deltas[m][i] * V[m][j]
-        
-        # Calculamos el error total sobre todo el conjunto de datos para verificar mejora
-        error_costo_total = error_costo(x, y, weights, β, tanh_mode)
-        
-        if error_costo_total <= error:
-            error = error_costo_total
-            w_min = [w.copy() for w in weights]
+
+        # Optimizacion: Calculamos el error global cada 100 iteraciones
+        if iterations % 100 == 0:
+            error_costo_total = error_costo(x, y, weights, β, tanh_mode)
+            if error_costo_total <= error:
+                error = error_costo_total
+                w_min = [w.copy() for w in weights]
         iterations += 1
 
     return w_min, error, iterations
+
+
+def evaluar_perceptron_multicapa(x, weights, num_outputs, β=None, tanh_mode=False):
+    x = np.asanyarray(x)
+    # Determinamos cuántas entradas espera la primera capa (menos el bias)
+    num_inputs = weights[0].shape[1] - 1
+    # Tomamos solo los bits de entrada, ignorando etiquetas si las hay
+    x_raw = x[:num_inputs]
+    v_actual = np.insert(x_raw, 0, 1.0)
+    
+    for m in range(len(weights)):
+        v_siguiente = []
+        for neurona_pesos in weights[m]:
+            h = excitacion(v_actual, neurona_pesos)
+            o = activacion(h, β, tanh_mode)
+            v_siguiente.append(o)
+        if m < len(weights) - 1:
+            v_actual = np.insert(v_siguiente, 0, 1.0)
+        else:
+            v_actual = np.array(v_siguiente)
+            
+    return v_actual
 
 
 def error_costo(x, y, weights, β, tanh_mode):
@@ -182,21 +204,15 @@ def error_costo(x, y, weights, β, tanh_mode):
                 h = excitacion(v_actual, neurona_pesos)
                 o = activacion(h, β, tanh_mode)
                 v_siguiente.append(o)
-            
+
             v_actual = np.array(v_siguiente)
             if m < len(weights) - 1:
                 v_actual = np.insert(v_actual, 0, 1.0)
-        
+
         suma_total += np.sum((y[μ] - v_actual) ** 2)
-    
+
     return 0.5 * suma_total
 
-
-def evaluar_perceptron_simple(x, w, b=None, tanh_mode=False):
-    x_μ = np.insert(x, 0, 1)  # agrega un 1 al inicio, para hacer x0 * w0
-    h = excitacion(x_μ, w)
-    O = activacion(h, b, tanh_mode)
-    return O
 
 
 def calcular_error(x, y, w, p, β=None, tanh_mode=False):
