@@ -526,7 +526,7 @@ def outputs_multicapa(size, max=1, min=-1):
     for i in range(size):
         item = []
         for j in range(size):
-            item.append(max if i == j else min)
+            item.append(np.float64(max) if i == j else np.float64(min))
         outputs.append(item)
     return outputs
 

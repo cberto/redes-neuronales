@@ -65,11 +65,10 @@ def perceptron_multicapa(data, n, COTA, β, layers=[], tanh_mode=False):
     iterations = 0
     p = len(data)
 
-    # Tomamos tantas columnas de salida como indique la última capa
     num_outputs = layers[-1]
     y = data[:, -num_outputs:]
 
-    # El resto de las columnas son la entrada (x)
+
     x_raw = data[:, :-num_outputs]
     x = np.ones((p, x_raw.shape[1] + 1))
     x[:, 1:] = x_raw
@@ -77,9 +76,9 @@ def perceptron_multicapa(data, n, COTA, β, layers=[], tanh_mode=False):
     weights = []
     # 1. Inicializar pesos: w_ij^m (valores pequeños al azar)
     for i in range(len(layers) - 1):
-        # Matriz de (nodos siguiente) x (nodos actuales + w0)
+        # Matriz de (nodos siguiente) x (w0 + nodos actuales)
         shape = (layers[i + 1], layers[i] + 1)
-        w_m = np.random.uniform(-0.1, 0.1, shape) # Pesos más pequeños para estabilidad
+        w_m = np.random.uniform(-0.1, 0.1, shape) # Pesos ma pequeños
         weights.append(w_m)
 
     x_μ = None
@@ -89,15 +88,15 @@ def perceptron_multicapa(data, n, COTA, β, layers=[], tanh_mode=False):
     error_costo_total = 0
     error = float("inf")
     while error > 0 and iterations < COTA:
-        # 2. Seleccionar un patrón al azar: V_i^0 = ξ_i^μ
+        # 2. Seleccionar un patron al azar: V_i^0 = ξ_i^μ
         if actual_layer == 0:
             pos = np.random.randint(0, p)
             x_μ = x[pos]
             y_μ = y[pos]
 
-        # 3. Propagación hacia adelante (Forward Pass): V_i^m = g(h_i^m) = g(Σ w_ij^m * V_j^{m-1})
-        V = [x_μ]  # Guardamos las activaciones de cada capa (la 0 es la entrada)
-        H = []  # Guardamos las excitaciones (h) de cada capa
+        # 3. Propagacion hacia adelante: V_i^m = g(h_i^m) = g(Σ w_ij^m * V_j^{m-1})
+        V = [x_μ]  # Activaciones de cada capa (la 0 es la entrada)
+        H = []  # Excitaciones (h) de cada capa
 
         for m in range(len(weights)):
             h_capa = []
@@ -112,7 +111,7 @@ def perceptron_multicapa(data, n, COTA, β, layers=[], tanh_mode=False):
 
             H.append(np.array(h_capa))
 
-            # Si no es la última capa, agregamos el bias (1.0) para la siguiente
+            # Si no es la ultima capa, agregamos el w0 (1.0) para la siguiente
             if m < len(weights) - 1:
                 v_siguiente.insert(0, 1.0)
 
@@ -147,26 +146,29 @@ def perceptron_multicapa(data, n, COTA, β, layers=[], tanh_mode=False):
                 # Sumamos la influencia de cada neurona 'j' de la capa siguiente
                 for j in range(len(deltas[m + 1])):
                     # weights[m+1][j][i+1] es el peso que conecta i con j
+                    w_ij_m = weights[m + 1][j][i + 1]
                     # Usamos i+1 porque el índice 0 de la matriz de pesos es el bias
-                    suma += weights[m + 1][j][i + 1] * deltas[m + 1][j]
+                    δ_j_m = deltas[m + 1][j]
+                    suma += w_ij_m * δ_j_m
                 sumatorias[i] = suma
 
             deltas[m] = g_m * sumatorias
 
-        # 6. Actualizar pesos manualmente: Δw_ij^m = η * δ_i^m * V_j^{m-1}
+        # 6. Actualizar pesos: Δw_ij^m = η * δ_i^m * V_j^{m-1}
         for m in range(len(weights)):
             # Para cada neurona 'i' en la capa siguiente (destino de la conexión)
             for i in range(len(deltas[m])):
                 # Para cada valor 'j' que viene de la capa anterior (origen de la conexión)
                 for j in range(len(V[m])):
-                    weights[m][i][j] += n * deltas[m][i] * V[m][j]
+                    δ_i_m = deltas[m][i]
+                    V_j_m = V[m][j]
+                    weights[m][i][j] += n * δ_i_m * V_j_m
 
-        # Optimizacion: Calculamos el error global cada 100 iteraciones
-        if iterations % 100 == 0:
-            error_costo_total = error_costo(x, y, weights, β, tanh_mode)
-            if error_costo_total <= error:
-                error = error_costo_total
-                w_min = [w.copy() for w in weights]
+        
+        error_costo_total = error_costo(x, y, weights, β, tanh_mode)
+        if error_costo_total <= error:
+            error = error_costo_total
+            w_min = [w.copy() for w in weights]
         iterations += 1
 
     return w_min, error, iterations
@@ -174,7 +176,7 @@ def perceptron_multicapa(data, n, COTA, β, layers=[], tanh_mode=False):
 
 def evaluar_perceptron_multicapa(x, weights, num_outputs, β=None, tanh_mode=False):
     x = np.asanyarray(x)
-    # Determinamos cuántas entradas espera la primera capa (menos el bias)
+    # Determinamos cuántas entradas espera la primera capa (menos el w0)
     num_inputs = weights[0].shape[1] - 1
     # Tomamos solo los bits de entrada, ignorando etiquetas si las hay
     x_raw = x[:num_inputs]
