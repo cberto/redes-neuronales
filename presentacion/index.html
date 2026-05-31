@@ -272,10 +272,58 @@ footer{padding:40px clamp(16px,4vw,46px) 60px;border-top:1px solid var(--line);f
 footer .big{font-family:var(--font-display);font-weight:900;font-size:clamp(2rem,7vw,5rem);color:var(--ink);letter-spacing:-.03em;line-height:1;margin-bottom:.3em}
 
 /* section divider numbers */
-.secnum{position:absolute;top:clamp(40px,7vw,90px);right:clamp(16px,4vw,46px);font-family:var(--font-display);font-weight:900;font-size:clamp(2.4rem,5vw,4rem);color:var(--line);opacity:.7;z-index:0}
+.secnum{position:absolute;top:clamp(40px,7vw,90px);right:clamp(16px,4vw,46px);font-family:var(--font-display);font-weight:900;font-size:clamp(2.4rem,5vw,4rem);color:var(--line);opacity:.7;z-index:0;will-change:transform}
+
+/* ============================== INTERACTIVO ============================== */
+/* barra de progreso de scroll */
+#progress{position:fixed;top:0;left:0;height:3px;width:0;z-index:200;background:linear-gradient(90deg,var(--blue),var(--violet));transition:width .08s linear}
+
+/* menú: link de la sección activa */
+nav ul a.active{color:var(--ink)}
+nav ul a.active::after{width:100%}
+
+/* microanimaciones hover en tarjetas */
+.metric,.gterm,.ccard,.scard,.fcard,.sym{transition:transform .22s cubic-bezier(.2,.7,.2,1),box-shadow .22s}
+.metric:hover,.gterm:hover,.ccard:hover,.scard:hover,.fcard:hover{transform:translateY(-4px);box-shadow:0 18px 30px -20px rgba(16,26,46,.5)}
+.sym:hover{transform:translateY(-2px)}
+
+/* slider de ruido (ej3) */
+.noise-control{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.noise-control input[type=range]{-webkit-appearance:none;appearance:none;height:6px;border-radius:6px;background:var(--line);width:200px;outline:none;cursor:pointer}
+.noise-control input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:20px;height:20px;border-radius:50%;background:var(--violet);border:3px solid #fffdf7;box-shadow:0 2px 6px rgba(16,26,46,.4);cursor:pointer;transition:transform .15s}
+.noise-control input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.18)}
+.noise-control input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;background:var(--violet);border:3px solid #fffdf7;cursor:pointer}
+.noise-val{font-family:var(--font-mono);font-weight:700;color:var(--violet);min-width:3em;font-size:.9rem}
+
+/* recordatorio flotante (teleprompter) */
+#recordatorio{position:fixed;bottom:20px;right:20px;z-index:150;max-width:300px;background:var(--ink);color:var(--paper);border-radius:14px;padding:14px 30px 14px 44px;box-shadow:0 18px 40px -18px rgba(16,26,46,.7);font-size:.86rem;line-height:1.45;opacity:0;transform:translateY(10px);pointer-events:none;transition:opacity .3s,transform .3s}
+#recordatorio.show{opacity:1;transform:none;pointer-events:auto}
+#recordatorio::before{content:"💡";position:absolute;left:14px;top:13px}
+#recordatorio .rtitle{font-family:var(--font-mono);font-size:.62rem;letter-spacing:.12em;text-transform:uppercase;color:var(--blue-bright);font-weight:700;margin-bottom:3px}
+#recordatorio .rclose{position:absolute;top:6px;right:11px;cursor:pointer;color:var(--ink-faint);font-size:1.1rem;line-height:1}
+#recordatorio .rclose:hover{color:var(--paper)}
+#recToggle{position:fixed;bottom:20px;right:20px;z-index:149;width:50px;height:50px;border-radius:50%;background:var(--ink);color:var(--paper);border:none;cursor:pointer;font-size:1.3rem;box-shadow:0 12px 28px -12px rgba(16,26,46,.7);display:none;align-items:center;justify-content:center}
+@media(max-width:760px){#recordatorio{max-width:210px;font-size:.78rem}}
+/* lámina resumen (poster con todas las fórmulas + recorrido spotlight) */
+.poster{position:relative;max-width:760px;margin:18px auto 0;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow)}
+.poster img{display:block;width:100%;height:auto}
+.poster-spot{position:absolute;left:3%;top:8%;width:53%;height:45%;border:3px solid var(--blue-bright);border-radius:8px;box-shadow:0 0 0 9999px rgba(16,26,46,.6);opacity:0;pointer-events:none;z-index:2;transition:left .5s cubic-bezier(.4,0,.2,1),top .5s cubic-bezier(.4,0,.2,1),width .5s cubic-bezier(.4,0,.2,1),height .5s cubic-bezier(.4,0,.2,1),opacity .3s}
+.poster-spot.on{opacity:1}
+.poster-cap{position:absolute;left:0;right:0;bottom:0;z-index:3;background:linear-gradient(transparent,rgba(16,26,46,.94));color:var(--paper);padding:40px 20px 18px;font-size:.92rem;line-height:1.45;opacity:0;transform:translateY(10px);transition:opacity .3s,transform .3s;pointer-events:none}
+.poster-cap.on{opacity:1;transform:none}
+.poster-cap b{font-family:var(--font-mono);font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:var(--blue-bright);display:block;margin-bottom:4px}
+.poster-ctrl{display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap;margin:16px auto 0;max-width:760px}
+@media(prefers-reduced-motion:reduce){*{animation-duration:.001ms!important;transition-duration:.001ms!important}}
 </style>
 </head>
 <body>
+<div id="progress"></div>
+<div id="recordatorio">
+  <span class="rclose" id="recClose">×</span>
+  <div class="rtitle">Recordatorio</div>
+  <div class="rbody">Scrolleá para empezar.</div>
+</div>
+<button id="recToggle" title="Mostrar recordatorio">💡</button>
 
 <!-- ============ NAV ============ -->
 <nav id="nav">
@@ -358,11 +406,11 @@ footer .big{font-family:var(--font-display);font-weight:900;font-size:clamp(2rem
     <div class="flow reveal d2">
       <div class="step b1"><div class="lab">entrada</div><div class="val">ξ<sub>k</sub></div></div>
       <div class="arrow">→</div>
-      <div class="step b1"><div class="lab">suma oculta</div><div class="val">h<sub>j</sub></div></div>
+      <div class="step b1"><div class="lab">exitación capa oculta</div><div class="val">h<sub>j</sub></div></div>
       <div class="arrow">→</div>
       <div class="step b2"><div class="lab">activación</div><div class="val">V<sub>j</sub></div></div>
       <div class="arrow">→</div>
-      <div class="step b1"><div class="lab">suma salida</div><div class="val">H<sub>i</sub></div></div>
+      <div class="step b1"><div class="lab">exitación capa salida</div><div class="val">H<sub>i</sub></div></div>
       <div class="arrow">→</div>
       <div class="step b2"><div class="lab">activación</div><div class="val">O<sub>i</sub></div></div>
     </div>
@@ -392,7 +440,7 @@ footer .big{font-family:var(--font-display);font-weight:900;font-size:clamp(2rem
       <div class="fcard reveal d1">
         <h4><span class="num">2</span> Activación</h4>
         <div class="formula">V<sub>j</sub> = g(h<sub>j</sub>)</div>
-        <p>“Aplasta” ese número a un rango suave (entre −1 y 1): la neurona decide cuánto se activa.</p>
+        <p>“Aplasta” ese número a un rango suave (entre −1 y 1 para hiperbólica, entre 0 y 1 para logística): la neurona decide cuánto se activa. </p>
       </div>
       <div class="fcard reveal d2">
         <h4><span class="num">3</span> Salida</h4>
@@ -402,7 +450,7 @@ footer .big{font-family:var(--font-display);font-weight:900;font-size:clamp(2rem
       <div class="fcard bp reveal">
         <h4><span class="num">A</span> δ en la salida</h4>
         <div class="formula">δ<sub>i</sub><sup>M</sup> = g′(h<sub>i</sub>)·(ζ<sub>i</sub> − O<sub>i</sub>)</div>
-        <p>Mide cuánto se equivocó cada salida: la respuesta correcta menos lo que dio la red.</p>
+        <p>Mide cuánto se equivocó cada salida (error de salida): la respuesta correcta menos lo que dio la red.</p>
       </div>
       <div class="fcard bp reveal d1">
         <h4><span class="num">B</span> δ retropropagado</h4>
@@ -414,6 +462,19 @@ footer .big{font-family:var(--font-display);font-weight:900;font-size:clamp(2rem
         <div class="formula">Δw<sub>ij</sub><sup>m</sup> = η · δ<sub>i</sub><sup>m</sup> · V<sub>j</sub><sup>m−1</sup></div>
         <p>Mueve cada peso un poquito (paso η) en la dirección que reduce el error.</p>
       </div>
+    </div>
+
+    <!-- lámina resumen con TODAS las fórmulas -->
+    <div class="minihead reveal" style="margin-top:46px">Todo junto, en una sola lámina</div>
+    <figure class="poster reveal d1" id="poster">
+      <img src="paso-a-paso.png" alt="Perceptrón multicapa paso a paso: arquitectura, propagación hacia adelante, error en la salida, retropropagación, idea clave y glosario, con todas las fórmulas" loading="lazy" />
+      <div class="poster-spot" id="posterSpot"></div>
+      <figcaption class="poster-cap" id="posterCap"></figcaption>
+    </figure>
+    <div class="poster-ctrl reveal">
+      <button class="btn alt" id="posterPrev" style="visibility:hidden">‹ Anterior</button>
+      <button class="btn" id="posterNext">▶ Recorrer paso a paso</button>
+      <a class="btn alt" href="paso-a-paso.png" target="_blank" rel="noopener">⤢ ver completa</a>
     </div>
   </div>
 </section>
@@ -471,27 +532,34 @@ footer .big{font-family:var(--font-display);font-weight:900;font-size:clamp(2rem
         <div class="code">
           <div class="bar"><i style="background:#ff5f56"></i><i style="background:#ffbd2e"></i><i style="background:#27c93f"></i><span class="t">tp_2/part_1.py · XOR</span></div>
           <pre><code><span class="ln" data-s="1"><span class="tok-c"># entradas XOR y su salida esperada (±1)</span></span>
-<span class="ln" data-s="1">data_xor = np.array([[<span class="tok-n">-1</span>,<span class="tok-n">1</span>,<span class="tok-n">1</span>],[<span class="tok-n">1</span>,<span class="tok-n">-1</span>,<span class="tok-n">1</span>],</span>
-<span class="ln" data-s="1">                     [<span class="tok-n">-1</span>,<span class="tok-n">-1</span>,<span class="tok-n">-1</span>],[<span class="tok-n">1</span>,<span class="tok-n">1</span>,<span class="tok-n">-1</span>]])</span>
+<span class="ln" data-s="1">data_xor = [[<span class="tok-n">-1</span>,<span class="tok-n">1</span>,<span class="tok-n">1</span>],[<span class="tok-n">1</span>,<span class="tok-n">-1</span>,<span class="tok-n">1</span>],</span>
+<span class="ln" data-s="1">            [<span class="tok-n">-1</span>,<span class="tok-n">-1</span>,<span class="tok-n">-1</span>],[<span class="tok-n">1</span>,<span class="tok-n">1</span>,<span class="tok-n">-1</span>]]</span>
 <span class="ln" data-s="2"><span class="tok-k">for</span> n <span class="tok-k">in</span> N:           <span class="tok-c"># tasa de aprendizaje η</span></span>
 <span class="ln" data-s="2">  <span class="tok-k">for</span> b <span class="tok-k">in</span> B:         <span class="tok-c"># constante β de la activación</span></span>
 <span class="ln" data-s="3">    w, error, it = <span class="tok-f">perceptron_multicapa</span>(</span>
-<span class="ln" data-s="3">        train_data, n, COTA=<span class="tok-n">10000</span>,</span>
+<span class="ln" data-s="3">        data_xor, n=n, COTA=<span class="tok-n">10000</span>,</span>
 <span class="ln" data-s="3">        β=b, layers=[<span class="tok-n">2</span>,<span class="tok-n">2</span>,<span class="tok-n">1</span>], tanh_mode=<span class="tok-k">True</span>)</span>
-<span class="ln" data-s="4">    <span class="tok-c"># nos quedamos con el de menor error</span></span></code></pre>
+<span class="ln" data-s="4">    <span class="tok-c"># nos quedamos con el de menor error</span></span>
+<span class="ln" data-s="4"></span>
+<span class="ln" data-s="4"><span class="tok-c"># evaluamos los 4 patrones con el mejor w</span></span>
+<span class="ln" data-s="4"><span class="tok-k">for</span> patron <span class="tok-k">in</span> data_xor:</span>
+<span class="ln" data-s="4">    esperado = patron[<span class="tok-n">-1</span>]</span>
+<span class="ln" data-s="4">    pred = <span class="tok-f">evaluar_perceptron_multicapa</span>(</span>
+<span class="ln" data-s="4">        np.array(patron), w, <span class="tok-n">1</span>, β=b, tanh_mode=<span class="tok-k">True</span>)</span>
+<span class="ln" data-s="4">    <span class="tok-k">if</span> np.<span class="tok-f">sign</span>(pred[<span class="tok-n">0</span>]) == np.<span class="tok-f">sign</span>(esperado): aciertos+=<span class="tok-n">1</span></span></code></pre>
         </div>
         <div class="codenote"><span class="b">i</span><span><b>tanh_mode=True</b> activa <code style="font-family:var(--font-mono)">g(h)=tanh(βh)</code> y su derivada <code style="font-family:var(--font-mono)">β(1−g²)</code>, ideal para salidas en {1,−1}.</span></div>
       </div>
     </div>
 
     <div class="result reveal d2" style="margin-top:36px">
+      <div class="metric"><div class="v" style="color:var(--amber)" data-count="4">4</div><div class="l">de 4 patrones (100%)</div></div>
+      <div class="metric"><div class="v" data-count="0.001" data-dec="3">0.001</div><div class="l">error final</div></div>
       <div class="metric"><div class="v">[2,2,1]</div><div class="l">red mínima</div></div>
-      <div class="metric"><div class="v">tanh</div><div class="l">activación</div></div>
-      <div class="metric"><div class="v">η, β</div><div class="l">se barren varias</div></div>
-      <div class="metric"><div class="v">10000</div><div class="l">iteraciones (COTA)</div></div>
+      <div class="metric"><div class="v">η0.1 · β1.0</div><div class="l">mejor combinación</div></div>
     </div>
     <p class="reveal" style="margin-top:20px;color:var(--ink-soft);max-width:62ch">
-      <b>La idea:</b> con la capa del medio la red puede separar el XOR, algo imposible para un perceptrón de una sola capa. Lo más difícil es encontrar los valores de η y β: si son muy grandes la red “se pasa” y no aprende; si son muy chicos, casi no se mueve y se queda estancada. Por eso se prueban varias combinaciones y se elige la mejor.
+      <b>Resultado:</b> la red aprende las <b>4 combinaciones</b> del XOR (100%), algo imposible para un perceptrón de una sola capa. Lo más difícil fue encontrar η y β: si son muy grandes la red “se pasa” y no aprende; si son muy chicos, casi no se mueve y se queda estancada. Por eso probamos varias y nos quedamos con la mejor (η=0.1, β=1.0).
     </p>
   </div>
 </section>
@@ -532,7 +600,7 @@ footer .big{font-family:var(--font-display);font-weight:900;font-size:clamp(2rem
         <ul>
           <li>Entrada de <b>35 neuronas</b> (un píxel = una entrada) y <b>2 salidas</b>: una marca "par" y la otra "impar" (<code>par=[−1,1]</code>, <code>impar=[1,−1]</code>).</li>
           <li>Capa oculta de <b>50 neuronas</b> → red <code>[35, 50, 2]</code>.</li>
-          <li>Entrenamos con un <b>subconjunto</b> de los dígitos y dejamos el resto para <b>testear</b> (lo que pide el TP), así medimos si generaliza.</li>
+          <li>Entrenamos con un <b>subconjunto</b> de los dígitos y dejamos el resto para <b>testear</b>  así medimos si generaliza.</li>
           <li>La predicción se lee con <code>argmax</code>: gana la salida más alta.</li>
         </ul>
         <div class="spec" style="margin-top:14px">
@@ -562,7 +630,7 @@ footer .big{font-family:var(--font-display);font-weight:900;font-size:clamp(2rem
     </div>
 
     <div class="result reveal" style="margin-top:36px">
-      <div class="metric"><div class="v" style="color:var(--teal)">0.004</div><div class="l">error de entrenamiento</div></div>
+      <div class="metric"><div class="v" style="color:var(--teal)" data-count="0.004" data-dec="3">0.004</div><div class="l">error de entrenamiento</div></div>
       <div class="metric"><div class="v">9 / 1</div><div class="l">dígitos: entrenar / testear</div></div>
       <div class="metric"><div class="v">[35,50,2]</div><div class="l">arquitectura</div></div>
       <div class="metric"><div class="v">η0.1 · β1.0</div><div class="l">mejor combinación</div></div>
@@ -596,8 +664,12 @@ footer .big{font-family:var(--font-display);font-weight:900;font-size:clamp(2rem
 
     <div class="panel reveal d1" style="margin-bottom:30px">
       <div class="toolbar">
-        <button class="btn alt" id="btnNoise">⚡ Aplicar ruido (p = 0.02)</button>
-        <button class="btn" id="btnClean">Limpiar</button>
+        <div class="noise-control">
+          <span style="font-family:var(--font-mono);font-size:.74rem;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.08em">Ruido</span>
+          <input type="range" id="noiseSlider" min="0" max="30" value="0" step="1" />
+          <span class="noise-val" id="noiseVal">0%</span>
+          <button class="btn alt" id="btnNoise02">↺ p = 0.02 (el del TP)</button>
+        </div>
         <div class="legend">
           <span><i style="background:var(--ink)"></i> original</span>
           <span><i style="background:var(--violet)"></i> bit invertido por ruido</span>
@@ -613,19 +685,19 @@ footer .big{font-family:var(--font-display);font-weight:900;font-size:clamp(2rem
           <div class="bar"><i style="background:#ff5f56"></i><i style="background:#ffbd2e"></i><i style="background:#27c93f"></i><span class="t">tp_2/part_1.py · 0–9</span></div>
           <pre><code><span class="ln"><span class="tok-c"># 10 salidas: el dígito d -&gt; se prende la salida #d</span></span>
 <span class="ln">base10 = <span class="tok-f">outputs_multicapa</span>(<span class="tok-n">10</span>, min=<span class="tok-n">-1</span>, max=<span class="tok-n">1</span>)</span>
-<span class="ln">labeled = [number_bits[i] + base10[i]</span>
-<span class="ln">                  <span class="tok-k">for</span> i <span class="tok-k">in</span> <span class="tok-f">range</span>(<span class="tok-n">10</span>)]</span>
-<span class="ln">w,error,it = <span class="tok-f">perceptron_multicapa</span>(labeled,</span>
-<span class="ln">    n=n, COTA=<span class="tok-n">1000</span>, β=b, layers=[<span class="tok-n">35</span>,<span class="tok-n">50</span>,<span class="tok-n">10</span>])</span>
+<span class="ln"><span class="tok-k">for</span> idx <span class="tok-k">in</span> <span class="tok-f">range</span>(<span class="tok-f">len</span>(number_bits)):</span>
+<span class="ln">    labeled_data.append(number_bits[idx] + base10[idx])</span>
 <span class="ln"></span>
-<span class="ln"><span class="tok-c"># ruido: con prob. p intercambio cada bit (0&lt;-&gt;1)</span></span>
-<span class="ln"><span class="tok-k">def</span> <span class="tok-f">aplicar_ruido</span>(bits, p):</span>
-<span class="ln">  <span class="tok-k">return</span> [(<span class="tok-n">1</span>-b) <span class="tok-k">if</span> np.random.random()&lt;p <span class="tok-k">else</span> b</span>
-<span class="ln">          <span class="tok-k">for</span> b <span class="tok-k">in</span> bits]</span>
+<span class="ln"><span class="tok-c"># entrena con los 10 dígitos (no se separa test)</span></span>
+<span class="ln">w,error,it = <span class="tok-f">perceptron_multicapa</span>(labeled_data,</span>
+<span class="ln">    n=n, COTA=<span class="tok-n">5000</span>, β=b, layers=[<span class="tok-n">35</span>,<span class="tok-n">50</span>,<span class="tok-n">10</span>])</span>
 <span class="ln"></span>
-<span class="ln">noisy = <span class="tok-f">aplicar_ruido</span>(number_bits[d], <span class="tok-n">0.02</span>)</span>
-<span class="ln">pred = <span class="tok-f">evaluar_perceptron_multicapa</span>(noisy, w, <span class="tok-n">10</span>)</span>
-<span class="ln"><span class="tok-k">if</span> np.<span class="tok-f">argmax</span>(base10[d]) == np.<span class="tok-f">argmax</span>(pred): aciertos += <span class="tok-n">1</span></span></code></pre>
+<span class="ln"><span class="tok-c"># test: 10 copias con ruido (p=0.02) de cada dígito</span></span>
+<span class="ln"><span class="tok-k">for</span> esperado <span class="tok-k">in</span> <span class="tok-f">range</span>(<span class="tok-f">len</span>(number_bits)):</span>
+<span class="ln">  <span class="tok-k">for</span> _ <span class="tok-k">in</span> <span class="tok-f">range</span>(<span class="tok-n">10</span>):</span>
+<span class="ln">    test_x = <span class="tok-f">agregar_ruido</span>(number_bits[esperado], <span class="tok-n">0.02</span>)</span>
+<span class="ln">    pred = <span class="tok-f">evaluar_perceptron_multicapa</span>(test_x, w, <span class="tok-n">10</span>)</span>
+<span class="ln">    <span class="tok-k">if</span> esperado == np.<span class="tok-f">argmax</span>(pred): aciertos += <span class="tok-n">1</span></span></code></pre>
         </div>
         <div class="codenote"><span class="b">i</span><span>La red <code style="font-family:var(--font-mono)">[35,50,10]</code> aprende una representación interna del dígito. Si está bien entrenada, el ruido leve cambia píxeles pero la salida correcta sigue ganando el argmax.</span></div>
       </div>
@@ -635,12 +707,12 @@ footer .big{font-family:var(--font-display);font-weight:900;font-size:clamp(2rem
         <ul>
           <li>Salida de <b>10 neuronas</b>: cada una “vota” por un dígito; gana la más alta (<code>argmax</code>).</li>
           <li>Una vez entrenada, el TP pide volver a mostrarle los dígitos pero con <b>ruido</b>: con probabilidad <b>0.02</b> se invierte cada bit (un píxel prendido se apaga y viceversa).</li>
-          <li>La idea es ver si la red, que aprendió la <em>forma</em> del dígito y no los píxeles exactos, <b>sigue acertando</b> aunque la imagen llegue un poco sucia.</li>
+          <li><b>Resultado:</b> con ese ruido la red <b>sigue acertando el 100%</b> de los dígitos — aprendió la <em>forma</em> general, no los píxeles exactos.</li>
           <li>Probamos <b>tanh y logística</b> × η × β y nos quedamos con el modelo de menor error.</li>
         </ul>
         <div class="result" style="margin-top:18px">
-          <div class="metric"><div class="v" style="color:var(--violet)">10</div><div class="l">salidas (una por dígito)</div></div>
-          <div class="metric"><div class="v">0.02</div><div class="l">prob. de ruido por bit</div></div>
+          <div class="metric"><div class="v" style="color:var(--violet)" data-count="100" data-suffix="%">100%</div><div class="l">acierto con ruido p=0.02</div></div>
+          <div class="metric"><div class="v" data-count="0.02" data-dec="2">0.02</div><div class="l">prob. de ruido por bit</div></div>
           <div class="metric"><div class="v">[35,50,10]</div><div class="l">arquitectura</div></div>
         </div>
       </div>
@@ -742,7 +814,7 @@ footer .big{font-family:var(--font-display);font-weight:900;font-size:clamp(2rem
 
 <footer>
   <div class="big">¡Gracias!</div>
-  Perceptrón Multicapa · TP2 · Fundamentos de Redes Neuronales · UNAHUR — Tecnicatura en Inteligencia Artificial<br>
+  Perceptrón Multicapa · TP2 · Fundamentos de Redes Neuronales · UNAHUR <br>
   <span style="opacity:.7">Implementación en Python · <code>tp_2/part_1.py</code> + <code>addons/functions.py</code></span>
 </footer>
 
@@ -807,8 +879,7 @@ document.getElementById('btnParity').addEventListener('click',function(){
   });
 });
 
-/* ================= noise (ej3) ================= */
-// deterministic pseudo-random so it looks alive but reproducible
+/* ================= slider de ruido (ej3) ================= */
 let seed=12345;function rnd(){seed=(seed*1103515245+12345)&0x7fffffff;return seed/0x7fffffff;}
 function applyNoise(p){
   let flips=0;
@@ -816,7 +887,7 @@ function applyNoise(p){
     const n=+w.dataset.n;const cells=w.querySelectorAll('.grid5x7 i');
     cells.forEach((c,i)=>{
       const orig=DIGITS[n][i];
-      if(rnd()<p){flips++;const now=orig?0:1;
+      if(p>0 && rnd()<p){flips++;const now=orig?0:1;
         if(now){c.classList.add('on');}else{c.classList.remove('on');}
         c.style.background='var(--violet)';c.style.transform='scale(1.15)';
       }else{
@@ -825,18 +896,99 @@ function applyNoise(p){
       }
     });
   });
-  document.getElementById('noiseInfo').textContent=
-    `Bits invertidos: ${flips} de 350 (${(flips/350*100).toFixed(1)}%) — con p=0.02 esperamos ~7 en total.`;
+  const info=document.getElementById('noiseInfo');
+  if(p<=0){info.textContent='Bits invertidos: 0 — las imágenes están intactas. Movés el slider y empieza el ruido.';}
+  else{info.textContent=`Bits invertidos: ${flips} de 350 (${(flips/350*100).toFixed(1)}%) — con p=${(p*100).toFixed(0)}% se esperan ~${Math.round(350*p)}.`;}
 }
-document.getElementById('btnNoise').addEventListener('click',()=>{seed=(seed+98765)&0x7fffffff;applyNoise(0.02);});
-document.getElementById('btnClean').addEventListener('click',()=>{
-  document.querySelectorAll('#digitsNoise .digit').forEach(w=>{
-    const n=+w.dataset.n;w.querySelectorAll('.grid5x7 i').forEach((c,i)=>{
-      if(DIGITS[n][i])c.classList.add('on');else c.classList.remove('on');
-      c.style.background='';c.style.transform='';});
-  });
-  document.getElementById('noiseInfo').textContent='Bits invertidos: 0 — la imagen está intacta.';
+const noiseSlider=document.getElementById('noiseSlider');
+const noiseVal=document.getElementById('noiseVal');
+noiseSlider.addEventListener('input',()=>{
+  const p=+noiseSlider.value/100;noiseVal.textContent=noiseSlider.value+'%';
+  seed=(seed+1357)&0x7fffffff;applyNoise(p);
 });
+document.getElementById('btnNoise02').addEventListener('click',()=>{
+  noiseSlider.value=2;noiseVal.textContent='2%';seed=(seed+98765)&0x7fffffff;applyNoise(0.02);
+});
+
+/* ================= progreso + scrollspy + recordatorio + parallax ================= */
+const prog=document.getElementById('progress');
+const secnums=[...document.querySelectorAll('.secnum')];
+addEventListener('scroll',()=>{
+  const h=document.documentElement;
+  const sc=h.scrollTop/((h.scrollHeight-h.clientHeight)||1);
+  if(prog)prog.style.width=(Math.min(sc,1)*100)+'%';
+  secnums.forEach(s=>{const r=s.getBoundingClientRect();s.style.transform=`translateY(${(r.top-innerHeight/2)*-0.05}px)`;});
+},{passive:true});
+
+const cues={
+  hero:['Inicio','Presentamos el TP: perceptrón multicapa y los 3 problemas.'],
+  metodo:['El método','Forward = la red responde. Backprop = el error vuelve y cada neurona se corrige.'],
+  algoritmo:['Algoritmo','7 pasos: iniciar pesos → propagar → calcular δ → retropropagar → actualizar → repetir.'],
+  ej1:['Ej 1 · XOR','El perceptrón simple no puede (no separa con una recta). La capa oculta sí → 100%.'],
+  ej2:['Ej 2 · Par/Impar','Aprende lo que ve, pero no hay relación forma↔paridad: memoriza, casi no generaliza.'],
+  ej3:['Ej 3 · Dígitos','10 salidas, una por dígito. Con ruido p=0.02 sigue acertando el 100%: aprendió la forma.'],
+  ayuda:['Ayuda memoria','Acá tenés cada término fácil y las preguntas típicas del profe.'],
+  conclusiones:['Conclusiones','Capa oculta resuelve no-lineales; η/β importan; aprender ≠ generalizar; aguanta ruido.']
+};
+const recEl=document.getElementById('recordatorio');
+const recTitle=recEl.querySelector('.rtitle');
+const recBody=recEl.querySelector('.rbody');
+const navLinks=[...document.querySelectorAll('nav ul a')];
+const spy=new IntersectionObserver((es)=>{es.forEach(e=>{if(e.isIntersecting){
+  const id=e.target.id;
+  navLinks.forEach(a=>a.classList.toggle('active',a.getAttribute('href')==='#'+id));
+  if(cues[id]){recTitle.textContent=cues[id][0];recBody.textContent=cues[id][1];}
+}});},{rootMargin:'-45% 0px -45% 0px'});
+document.querySelectorAll('section').forEach(s=>spy.observe(s));
+
+const recToggle=document.getElementById('recToggle');
+let recManual=false,recAuto=false;
+function showRec(v){recEl.classList.toggle('show',v);recToggle.style.display=v?'none':'flex';}
+document.getElementById('recClose').addEventListener('click',()=>{recManual=true;showRec(false);});
+recToggle.addEventListener('click',()=>{recManual=false;showRec(true);});
+addEventListener('scroll',()=>{if(!recAuto&&!recManual&&scrollY>320){recAuto=true;showRec(true);}},{passive:true});
+
+/* ================= números que cuentan solos ================= */
+function countUp(el){
+  const target=+el.dataset.count,dec=+(el.dataset.dec||0),suf=el.dataset.suffix||'';
+  const dur=1000,t0=performance.now();
+  function tick(now){const p=Math.min((now-t0)/dur,1),e=1-Math.pow(1-p,3);
+    el.textContent=(target*e).toFixed(dec)+suf;
+    if(p<1)requestAnimationFrame(tick);else el.textContent=target.toFixed(dec)+suf;}
+  requestAnimationFrame(tick);
+}
+const countObs=new IntersectionObserver((es)=>{es.forEach(e=>{if(e.isIntersecting){countUp(e.target);countObs.unobserve(e.target);}});},{threshold:.6});
+document.querySelectorAll('.metric .v[data-count]').forEach(el=>countObs.observe(el));
+
+/* ================= recorrido spotlight de la lámina ================= */
+const poster=document.getElementById('poster');
+if(poster){
+  const spot=document.getElementById('posterSpot');
+  const cap=document.getElementById('posterCap');
+  const prevBtn=document.getElementById('posterPrev');
+  const nextBtn=document.getElementById('posterNext');
+  const steps=[
+    {x:3,y:8,w:53,h:45,t:'1 · Arquitectura',d:'Tres capas: entrada (ξ), capa oculta (V) y salida (O), conectadas por pesos.'},
+    {x:57,y:8,w:41,h:45,t:'2 · Hacia adelante (forward)',d:'Cada neurona hace una suma ponderada (h) y le aplica la activación g. Capa por capa, hasta la salida O.'},
+    {x:2,y:53,w:96,h:9,t:'El recorrido de un dato',d:'De la entrada a la salida: x → h → V → H → O.'},
+    {x:2,y:62,w:35,h:18,t:'3 · Error en la salida',d:'Se compara la salida O con la deseada y se calcula δ: cuánto se equivocó.'},
+    {x:37,y:62,w:61,h:18,t:'4 · Retropropagación',d:'El error vuelve hacia atrás: cada neurona recibe su parte y se corrigen los pesos (Δw = η·δ·V).'},
+    {x:2,y:81,w:48,h:18,t:'5 · Idea clave',d:'Forward responde, backprop corrige. Repetir muchas épocas = aprender.'},
+    {x:51,y:81,w:47,h:18,t:'6 · Mini glosario',d:'Los términos clave en una línea: peso, suma ponderada, activación, error, época.'}
+  ];
+  let idx=-1;
+  function render(){
+    if(idx<0){spot.classList.remove('on');cap.classList.remove('on');prevBtn.style.visibility='hidden';nextBtn.textContent='▶ Recorrer paso a paso';return;}
+    const s=steps[idx];
+    spot.style.left=s.x+'%';spot.style.top=s.y+'%';spot.style.width=s.w+'%';spot.style.height=s.h+'%';
+    spot.classList.add('on');
+    cap.innerHTML=`<b>${s.t}</b>${s.d}`;cap.classList.add('on');
+    prevBtn.style.visibility='visible';
+    nextBtn.textContent=(idx>=steps.length-1)?'Terminar ↺':'Siguiente ›';
+  }
+  nextBtn.addEventListener('click',()=>{idx=(idx>=steps.length-1)?-1:idx+1;render();});
+  prevBtn.addEventListener('click',()=>{idx=(idx>0)?idx-1:-1;render();});
+}
 
 /* ================= MLP animated network (método) ================= */
 const NS='http://www.w3.org/2000/svg';
