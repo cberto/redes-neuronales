@@ -221,14 +221,14 @@ def tp2():
     print(f"Accuracy PT3: {accuracy_pt3:.2f}%")
     
     # Limpieza de datos pesados para el print final
-    # for res in [mejor_resultado_pt3, mejor_resultado_pt2]:
-    #     if "model" in res:
-    #         res["model"].pop("w", None)
-    #         res["model"].pop("test_data", None)
+    for res in [mejor_resultado_pt3, mejor_resultado_pt2]:
+        if "model" in res:
+            res["model"].pop("w", None)
+            res["model"].pop("test_data", None)
 
     return {
-        #"pt1": res_error_min_tp1,
-        #"pt2": mejor_resultado_pt2,
+        "pt1": res_error_min_tp1,
+        "pt2": mejor_resultado_pt2,
         "pt3": mejor_resultado_pt3,
     }
 

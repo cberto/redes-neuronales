@@ -162,6 +162,7 @@ def perceptron_multicapa(data, n, COTA, β, layers=[], tanh_mode=False):
                 for j in range(len(V[m])):
                     δ_i_m = deltas[m][i]
                     V_j_m = V[m][j]
+                    # w_ij^m nuevo = w_ij^m viejo * Δw_ij^m
                     weights[m][i][j] += n * δ_i_m * V_j_m
 
         
