@@ -4,6 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from tp_2.addons.functions import perceptron_multicapa, evaluar_perceptron_multicapa
 from utils.helpers import (
+    agregar_ruido,
     cargar_txt,
     join_group_of_lists,
     outputs_multicapa,
@@ -152,6 +153,12 @@ def tp2():
     accuracy_pt2 = (aciertos_pt2 / len(test_data)) * 100 if len(test_data) > 0 else 0
     mejor_resultado_pt2["accuracy"] = accuracy_pt2
     
+    # PT3: identificar los 10 dígitos. Acá NO hacemos leave-one-out (no dejamos
+    # clases afuera): si escondemos un dígito, su neurona de salida nunca se
+    # entrena y es imposible predecirlo. El enunciado pide entrenar con los
+    # dígitos y luego testear con esos MISMOS dígitos pero con ruido (prob 0,02).
+    PROB_RUIDO = 0.02          # probabilidad de invertir cada pixel en el test
+    COPIAS_POR_DIGITO = 10     # cuántas versiones ruidosas generamos por dígito
     modelos_entrenados_pt3 = []
     for mode_idx in range(2):
         for n in N:
@@ -159,19 +166,18 @@ def tp2():
                 tanh_mode = mode_idx == 0
                 tanh_mode_range = -1 if tanh_mode else 0
                 layers = [35, 50, 10]
-                COTA = 1000 
+                COTA = 5000
                 base10_output = outputs_multicapa(10, min=tanh_mode_range, max=1)
 
                 labeled_data = []
                 for idx in range(len(number_bits)):
                     labeled_data.append(number_bits[idx] + base10_output[idx])
 
-                test_data, train_data = split_test_data(labeled_data, shuffle_data=True, test_size=0.1)
-
+                # Entrenamos con TODOS los dígitos (la red tiene que ver las 10 clases)
                 w, error, iterations = perceptron_multicapa(
-                    train_data, n=n, COTA=COTA, β=b, layers=layers, tanh_mode=tanh_mode
+                    labeled_data, n=n, COTA=COTA, β=b, layers=layers, tanh_mode=tanh_mode
                 )
-                modo = "tanh" if tanh_mode else "logistica" 
+                modo = "tanh" if tanh_mode else "logistica"
                 print(f"Entreno PT3 = N:{n} B:{b} Error:{error} {modo}")
                 modelos_entrenados_pt3.append(
                     {
@@ -182,7 +188,6 @@ def tp2():
                         "layers": layers,
                         "w": w,
                         "error_min": error,
-                        "test_data": test_data,
                     }
                 )
 
@@ -196,26 +201,26 @@ def tp2():
     w = hiperparams["w"]
     b = hiperparams["b"]
     tanh_mode = hiperparams["tanh_mode"]
-    test_data = hiperparams["test_data"]
 
-    print(f"\n--- Evaluación PT3 (Identificación 0-9) ---")
+    print(f"\n--- Evaluación PT3 (Identificación 0-9 con ruido) ---")
+    # Test set: copias ruidosas de cada uno de los 10 dígitos de entrenamiento
+    num_outputs = 10
     aciertos_pt3 = 0
-    for test_pattern in test_data:
-        num_outputs = 10
-        test_x = test_pattern[:-num_outputs]
-        test_y = test_pattern[-num_outputs:]
-        number = what_number_is(test_x, number_bits)
-        predicted = evaluar_perceptron_multicapa(
-            test_pattern, w, num_outputs, β=b, tanh_mode=tanh_mode
-        )
-        test_result = {"number": number, "test_out": test_y, "predicted": predicted}
-        mejor_resultado_pt3["result"].append(test_result)
-        print(np.argmax(test_y),np.argmax(predicted))
-        if np.argmax(test_y) == np.argmax(predicted):
-            aciertos_pt3 += 1
-        print(f"Dígito {number}: {'OK' if np.argmax(test_y) == np.argmax(predicted) else 'ERROR'} (Esperado: {np.argmax(test_y)}, Predicho: {np.argmax(predicted)})")
+    total_pt3 = 0
+    for esperado in range(len(number_bits)):
+        for _ in range(COPIAS_POR_DIGITO):
+            test_x = agregar_ruido(number_bits[esperado], PROB_RUIDO)
+            predicted = evaluar_perceptron_multicapa(
+                test_x, w, num_outputs, β=b, tanh_mode=tanh_mode
+            )
+            predicho = int(np.argmax(predicted))
+            mejor_resultado_pt3["result"].append({"number": esperado, "predicted": predicted})
+            if esperado == predicho:
+                aciertos_pt3 += 1
+            total_pt3 += 1
+            print(f"Dígito {esperado} (ruido p={PROB_RUIDO}): {'OK' if esperado == predicho else 'ERROR'} (Predicho: {predicho})")
 
-    accuracy_pt3 = (aciertos_pt3 / len(test_data)) * 100 if len(test_data) > 0 else 0
+    accuracy_pt3 = (aciertos_pt3 / total_pt3) * 100 if total_pt3 > 0 else 0
     mejor_resultado_pt3["accuracy"] = accuracy_pt3
     print(f"Accuracy PT3: {accuracy_pt3:.2f}%")
     

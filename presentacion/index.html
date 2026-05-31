@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Perceptrón Multicapa · TP2 — paso a paso</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,900;1,9..144,500&family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<style>
+/* ============================== TOKENS ============================== */
+:root{
+  --paper:#f4efe3;
+  --paper-2:#ece5d4;
+  --ink:#101a2e;
+  --ink-soft:#33405a;
+  --ink-faint:#6b7791;
+  --line:#cdc4ad;
+  --line-strong:#b6a988;
+
+  --blue:#2347d9;        /* forward */
+  --blue-bright:#3b6bff;
+  --red:#d6304a;         /* backprop */
+  --amber:#e0852a;       /* ej1 xor */
+  --teal:#16967a;        /* ej2 par/impar */
+  --violet:#8b2fb0;      /* ej3 digitos */
+
+  --shadow: 0 1px 0 #fffdf6 inset, 0 18px 40px -22px rgba(16,26,46,.45);
+  --radius:18px;
+  --maxw:1180px;
+  --font-display:'Fraunces',Georgia,serif;
+  --font-body:'Hanken Grotesk',system-ui,sans-serif;
+  --font-mono:'JetBrains Mono',monospace;
+}
+
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;
+  font-family:var(--font-body);
+  color:var(--ink);
+  background:var(--paper);
+  background-image:
+    linear-gradient(rgba(16,26,46,.045) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(16,26,46,.045) 1px,transparent 1px);
+  background-size:26px 26px;
+  line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+  overflow-x:hidden;
+}
+/* grain overlay */
+body::before{
+  content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;opacity:.45;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.25'/%3E%3C/svg%3E");
+  mix-blend-mode:multiply;
+}
+::selection{background:var(--blue);color:#fff}
+
+a{color:inherit}
+h1,h2,h3{font-family:var(--font-display);font-weight:900;line-height:1.02;letter-spacing:-.02em;margin:0}
+p{margin:0 0 1em}
+
+/* ============================== NAV ============================== */
+nav{
+  position:fixed;top:0;left:0;right:0;z-index:100;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px clamp(16px,4vw,46px);
+  background:rgba(244,239,227,.82);
+  backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--line);
+  transition:transform .4s ease;
+}
+nav .brand{font-family:var(--font-mono);font-weight:700;font-size:.82rem;letter-spacing:.12em;text-transform:uppercase;display:flex;gap:.6em;align-items:center}
+nav .brand .dot{width:11px;height:11px;border-radius:50%;background:var(--blue);box-shadow:0 0 0 3px rgba(35,71,217,.18)}
+nav ul{display:flex;gap:clamp(8px,1.8vw,26px);list-style:none;margin:0;padding:0;font-family:var(--font-mono);font-size:.74rem;letter-spacing:.04em;text-transform:uppercase}
+nav ul a{text-decoration:none;color:var(--ink-soft);position:relative;padding:4px 2px;transition:color .2s}
+nav ul a::after{content:"";position:absolute;left:0;bottom:-2px;height:2px;width:0;background:var(--blue);transition:width .25s}
+nav ul a:hover{color:var(--ink)}
+nav ul a:hover::after{width:100%}
+@media(max-width:760px){nav ul{display:none}}
+
+/* ============================== LAYOUT ============================== */
+section{position:relative;padding:clamp(70px,9vw,130px) clamp(16px,4vw,46px)}
+.wrap{max-width:var(--maxw);margin:0 auto}
+.eyebrow{font-family:var(--font-mono);font-size:.76rem;letter-spacing:.22em;text-transform:uppercase;color:var(--blue);font-weight:700;display:inline-flex;align-items:center;gap:.7em;margin-bottom:1.1em}
+.eyebrow::before{content:"";width:34px;height:2px;background:var(--blue)}
+
+/* reveal */
+.reveal{opacity:0;transform:translateY(34px);transition:opacity .7s cubic-bezier(.2,.7,.2,1),transform .7s cubic-bezier(.2,.7,.2,1)}
+.reveal.in{opacity:1;transform:none}
+.reveal.d1{transition-delay:.08s}.reveal.d2{transition-delay:.16s}.reveal.d3{transition-delay:.24s}.reveal.d4{transition-delay:.32s}.reveal.d5{transition-delay:.4s}
+
+/* ============================== HERO ============================== */
+#hero{min-height:100vh;display:flex;align-items:center;padding-top:120px;overflow:hidden}
+#hero .wrap{position:relative;z-index:2}
+.hero-tag{font-family:var(--font-mono);font-size:.8rem;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:1.4em;display:flex;flex-wrap:wrap;gap:.5em 1.4em}
+.hero-tag b{color:var(--blue)}
+#hero h1{font-size:clamp(3rem,10.5vw,9.2rem);letter-spacing:-.035em}
+#hero h1 .ital{font-style:italic;font-weight:500;color:var(--blue)}
+.hero-sub{font-family:var(--font-display);font-style:italic;font-weight:500;font-size:clamp(1.2rem,3vw,2rem);color:var(--ink-soft);max-width:30ch;margin-top:.5em}
+.hero-meta{display:flex;flex-wrap:wrap;gap:14px;margin-top:2.6em}
+.chip{font-family:var(--font-mono);font-size:.78rem;letter-spacing:.04em;background:var(--ink);color:var(--paper);padding:9px 16px;border-radius:40px;display:inline-flex;align-items:center;gap:.6em}
+.chip.ghost{background:transparent;color:var(--ink);border:1.5px solid var(--line-strong)}
+.chip .k{color:var(--blue-bright)}
+.scroll-hint{position:absolute;bottom:30px;left:clamp(16px,4vw,46px);font-family:var(--font-mono);font-size:.7rem;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);display:flex;align-items:center;gap:.8em}
+.scroll-hint .bar{width:1px;height:34px;background:var(--line-strong);position:relative;overflow:hidden}
+.scroll-hint .bar::after{content:"";position:absolute;top:-50%;left:0;width:100%;height:50%;background:var(--blue);animation:drip 1.8s infinite}
+@keyframes drip{0%{top:-50%}100%{top:100%}}
+
+/* floating bg network */
+.hero-net{position:absolute;inset:0;z-index:1;opacity:.5;pointer-events:none}
+
+/* ============================== METHOD / NETWORK ============================== */
+.lead{font-size:clamp(1.15rem,2.4vw,1.5rem);max-width:34ch;font-family:var(--font-display);font-weight:400;color:var(--ink);line-height:1.3}
+.grid-2{display:grid;grid-template-columns:1.1fr .9fr;gap:clamp(28px,5vw,64px);align-items:center}
+@media(max-width:900px){.grid-2{grid-template-columns:1fr}}
+
+.netcard{
+  background:linear-gradient(165deg,#fffdf7,#f0e9d8);
+  border:1px solid var(--line);border-radius:var(--radius);
+  box-shadow:var(--shadow);padding:24px;position:relative;
+}
+.netcard .head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-family:var(--font-mono);font-size:.74rem;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint)}
+.controls{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap}
+.btn{
+  font-family:var(--font-mono);font-size:.76rem;font-weight:700;letter-spacing:.04em;
+  border:1.5px solid var(--ink);background:var(--ink);color:var(--paper);
+  padding:10px 16px;border-radius:40px;cursor:pointer;transition:transform .15s,box-shadow .2s,background .2s;
+  display:inline-flex;align-items:center;gap:.5em;
+}
+.btn:hover{transform:translateY(-2px);box-shadow:0 10px 20px -10px rgba(16,26,46,.6)}
+.btn.alt{background:transparent;color:var(--ink)}
+.btn.fwd{border-color:var(--blue);background:var(--blue)}
+.btn.bwd{border-color:var(--red);background:var(--red)}
+.btn.alt.on{background:var(--violet);border-color:var(--violet);color:#fff}
+
+svg.net text{font-family:var(--font-mono);font-weight:700}
+.node{fill:#fffef9;stroke:var(--ink);stroke-width:2;transition:fill .3s,stroke .3s,filter .3s}
+.node.in-l{stroke:var(--ink)}
+.edge{stroke:var(--line-strong);stroke-width:1.4;fill:none;transition:stroke .3s,stroke-width .3s,opacity .3s;opacity:.55}
+.edge.lit-fwd{stroke:var(--blue);stroke-width:2.4;opacity:1}
+.edge.lit-bwd{stroke:var(--red);stroke-width:2.4;opacity:1}
+.node.lit-fwd{fill:var(--blue);stroke:var(--blue);filter:drop-shadow(0 0 10px rgba(35,71,217,.6))}
+.node.lit-bwd{fill:var(--red);stroke:var(--red);filter:drop-shadow(0 0 10px rgba(214,48,74,.6))}
+.lyr-label{fill:var(--ink-faint);font-size:11px;letter-spacing:.1em;text-transform:uppercase}
+
+/* flow strip */
+.flow{display:flex;flex-wrap:wrap;align-items:stretch;gap:10px;margin-top:34px}
+.flow .step{
+  flex:1 1 120px;background:#fffdf7;border:1px solid var(--line);border-radius:14px;padding:14px 16px;position:relative;min-width:120px;
+}
+.flow .step .lab{font-family:var(--font-mono);font-size:.68rem;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint)}
+.flow .step .val{font-family:var(--font-display);font-size:1.5rem;font-weight:600;margin-top:2px}
+.flow .step.b1{border-bottom:3px solid var(--blue)}
+.flow .step.b2{border-bottom:3px solid var(--teal)}
+.flow .arrow{align-self:center;color:var(--blue);font-size:1.3rem}
+@media(max-width:640px){.flow .arrow{transform:rotate(90deg)}}
+
+/* formula cards */
+.fcards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-top:36px}
+.fcard{background:#fffdf7;border:1px solid var(--line);border-left:4px solid var(--blue);border-radius:14px;padding:18px 20px;box-shadow:var(--shadow)}
+.fcard.bp{border-left-color:var(--red)}
+.fcard h4{font-family:var(--font-mono);font-size:.74rem;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint);margin:0 0 10px;font-weight:700;display:flex;align-items:center;gap:.5em}
+.fcard .num{width:22px;height:22px;border-radius:50%;background:var(--blue);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:.72rem}
+.fcard.bp .num{background:var(--red)}
+.formula{font-family:var(--font-mono);font-size:1.02rem;background:var(--paper-2);border-radius:8px;padding:10px 12px;color:var(--ink);overflow-x:auto}
+.fcard p{font-size:.92rem;color:var(--ink-soft);margin:.7em 0 0}
+.formula sub{font-size:.7em}.formula sup{font-size:.7em}
+
+/* explicación en palabras simples */
+.simple{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:42px}
+@media(max-width:760px){.simple{grid-template-columns:1fr}}
+.scard{background:#fffdf7;border:1px solid var(--line);border-radius:var(--radius);padding:24px 26px;position:relative;box-shadow:var(--shadow)}
+.scard.fwd{border-top:4px solid var(--blue)}
+.scard.bwd{border-top:4px solid var(--red)}
+.scard .tag{font-family:var(--font-mono);font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;font-weight:700;display:inline-flex;align-items:center;gap:.5em;margin-bottom:.7em}
+.scard.fwd .tag{color:var(--blue)}.scard.bwd .tag{color:var(--red)}
+.scard h4{font-family:var(--font-display);font-weight:600;font-size:1.25rem;margin:0 0 .5em}
+.scard p{font-size:.96rem;color:var(--ink-soft);margin:0 0 .7em}
+.scard p:last-child{margin-bottom:0}
+.scard .hl{background:rgba(35,71,217,.13);padding:1px 5px;border-radius:5px;font-weight:600;color:var(--ink)}
+.scard.bwd .hl{background:rgba(214,48,74,.13)}
+
+/* leyenda de símbolos */
+.minihead{font-family:var(--font-mono);font-size:.78rem;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint);font-weight:700;margin:46px 0 6px;display:flex;align-items:center;gap:.7em}
+.minihead::before{content:"";width:22px;height:2px;background:var(--ink-faint)}
+.symbols{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0 0}
+.sym{display:flex;align-items:baseline;gap:.55em;background:var(--paper-2);border:1px solid var(--line);border-radius:10px;padding:8px 13px}
+.sym b{font-family:var(--font-mono);font-size:1rem;color:var(--blue)}
+.sym span{font-size:.82rem;color:var(--ink-soft)}
+
+/* ============================== ALGORITMO ============================== */
+.algo{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-top:8px;counter-reset:step}
+.astep{background:#fffdf7;border:1px solid var(--line);border-radius:14px;padding:20px 22px 18px;position:relative;overflow:hidden;transition:transform .25s,box-shadow .25s}
+.astep:hover{transform:translateY(-4px);box-shadow:0 18px 30px -20px rgba(16,26,46,.5)}
+.astep::before{counter-increment:step;content:counter(step,decimal-leading-zero);position:absolute;top:-14px;right:6px;font-family:var(--font-display);font-weight:900;font-size:3.6rem;color:rgba(35,71,217,.1)}
+.astep h4{font-size:1.05rem;font-family:var(--font-display);font-weight:600;margin-bottom:.3em}
+.astep p{font-size:.9rem;color:var(--ink-soft);margin:0}
+.astep code{font-family:var(--font-mono);font-size:.82rem;background:var(--paper-2);padding:1px 5px;border-radius:5px}
+
+/* ============================== EXERCISES ============================== */
+.ex-head{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;flex-wrap:wrap;border-bottom:2px solid var(--ink);padding-bottom:20px;margin-bottom:40px}
+.ex-num{font-family:var(--font-display);font-weight:900;font-size:clamp(3rem,9vw,7rem);line-height:.8;letter-spacing:-.04em}
+.ex-title{font-size:clamp(1.6rem,4vw,2.8rem)}
+.ex-pill{font-family:var(--font-mono);font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;padding:6px 14px;border-radius:40px;color:#fff;font-weight:700}
+
+.exgrid{display:grid;grid-template-columns:1fr 1fr;gap:clamp(22px,4vw,42px)}
+@media(max-width:880px){.exgrid{grid-template-columns:1fr}}
+
+.panel{background:#fffdf7;border:1px solid var(--line);border-radius:var(--radius);padding:26px;box-shadow:var(--shadow)}
+.panel h3{font-size:1.15rem;font-family:var(--font-display);font-weight:600;margin-bottom:.6em;display:flex;align-items:center;gap:.55em}
+.panel h3 .tg{font-family:var(--font-mono);font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;padding:3px 8px;border-radius:6px;background:var(--paper-2);color:var(--ink-faint);font-weight:700}
+.panel ul{margin:0;padding-left:1.1em}
+.panel li{margin-bottom:.55em;color:var(--ink-soft)}
+.panel li b{color:var(--ink)}
+
+.spec{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px}
+.spec div{background:var(--paper-2);border-radius:10px;padding:8px 12px;font-family:var(--font-mono);font-size:.78rem}
+.spec div span{color:var(--ink-faint);display:block;font-size:.66rem;letter-spacing:.06em;text-transform:uppercase}
+.spec div b{font-size:1rem}
+
+/* code block */
+.code{
+  background:#0e1828;border-radius:14px;overflow:hidden;border:1px solid #1d2c45;
+  font-family:var(--font-mono);font-size:.8rem;line-height:1.65;box-shadow:0 24px 40px -26px rgba(16,26,46,.8);
+}
+.code .bar{display:flex;align-items:center;gap:7px;padding:11px 16px;background:#0a1220;border-bottom:1px solid #1d2c45}
+.code .bar i{width:11px;height:11px;border-radius:50%;display:inline-block}
+.code .bar .t{margin-left:auto;font-size:.7rem;color:#5b6b86;letter-spacing:.06em}
+.code pre{margin:0;padding:16px 18px;overflow-x:auto;color:#cdd9ee}
+.code .ln{display:block;padding:1px 8px;border-radius:4px;transition:background .3s}
+.code .ln.hl{background:rgba(59,107,255,.16);box-shadow:inset 3px 0 0 var(--blue-bright)}
+.tok-k{color:#6ea8ff}.tok-f{color:#79e0c4}.tok-s{color:#e0a96d}.tok-c{color:#5b6b86;font-style:italic}.tok-n{color:#d98fd0}.tok-v{color:#e7eefc}
+
+.codenote{display:flex;gap:10px;align-items:flex-start;margin-top:14px;font-size:.86rem;color:var(--ink-soft)}
+.codenote .b{flex:none;width:24px;height:24px;border-radius:7px;background:var(--blue);color:#fff;font-family:var(--font-mono);font-weight:700;display:flex;align-items:center;justify-content:center;font-size:.74rem}
+
+/* digit grids */
+.digits{display:grid;grid-template-columns:repeat(5,1fr);gap:14px}
+@media(max-width:520px){.digits{grid-template-columns:repeat(3,1fr)}}
+.digit{display:flex;flex-direction:column;align-items:center;gap:7px}
+.digit .grid5x7{display:grid;grid-template-columns:repeat(5,1fr);gap:2px;padding:6px;background:var(--paper-2);border-radius:8px;width:100%;max-width:74px}
+.digit .grid5x7 i{aspect-ratio:1;border-radius:2px;background:#e4dcc6;transition:background .25s,transform .25s}
+.digit .grid5x7 i.on{background:var(--ink)}
+.digit .lab{font-family:var(--font-mono);font-size:.74rem;font-weight:700;display:flex;gap:.4em;align-items:center}
+.digit .lab .pe{font-size:.6rem;padding:2px 6px;border-radius:5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+.digit.flip i.on{background:var(--violet)}
+
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:18px}
+.toolbar .legend{font-family:var(--font-mono);font-size:.72rem;color:var(--ink-faint);display:flex;gap:1em;flex-wrap:wrap}
+.toolbar .legend span{display:inline-flex;align-items:center;gap:.4em}
+.toolbar .legend i{width:10px;height:10px;border-radius:3px;display:inline-block}
+
+.result{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;margin-top:4px}
+.metric{background:linear-gradient(160deg,#fffdf7,#f0e9d8);border:1px solid var(--line);border-radius:14px;padding:16px 18px;text-align:left}
+.metric .v{font-family:var(--font-display);font-weight:900;font-size:2rem;line-height:1;letter-spacing:-.02em}
+.metric .l{font-family:var(--font-mono);font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint);margin-top:6px}
+
+/* ============================== CONCLUSION ============================== */
+.concl{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px}
+.ccard{background:#fffdf7;border:1px solid var(--line);border-radius:14px;padding:24px;border-top:4px solid var(--blue)}
+.ccard .ic{font-family:var(--font-display);font-weight:900;font-size:1.6rem;color:var(--blue)}
+.ccard h4{font-family:var(--font-display);font-weight:600;font-size:1.1rem;margin:.4em 0}
+.ccard p{font-size:.9rem;color:var(--ink-soft);margin:0}
+
+.glossary{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-top:14px}
+.gterm{background:var(--paper-2);border-radius:12px;padding:14px 16px}
+.gterm b{font-family:var(--font-mono);color:var(--blue);font-size:.9rem}
+.gterm p{margin:.3em 0 0;font-size:.85rem;color:var(--ink-soft)}
+
+footer{padding:40px clamp(16px,4vw,46px) 60px;border-top:1px solid var(--line);font-family:var(--font-mono);font-size:.76rem;color:var(--ink-faint);text-align:center}
+footer .big{font-family:var(--font-display);font-weight:900;font-size:clamp(2rem,7vw,5rem);color:var(--ink);letter-spacing:-.03em;line-height:1;margin-bottom:.3em}
+
+/* section divider numbers */
+.secnum{position:absolute;top:clamp(40px,7vw,90px);right:clamp(16px,4vw,46px);font-family:var(--font-display);font-weight:900;font-size:clamp(2.4rem,5vw,4rem);color:var(--line);opacity:.7;z-index:0}
+</style>
+</head>
+<body>
+
+<!-- ============ NAV ============ -->
+<nav id="nav">
+  <div class="brand"><span class="dot"></span>TP2 · MLP</div>
+  <ul>
+    <li><a href="#hero">Inicio</a></li>
+    <li><a href="#metodo">El método</a></li>
+    <li><a href="#algoritmo">Algoritmo</a></li>
+    <li><a href="#ej1">Ej 1 · XOR</a></li>
+    <li><a href="#ej2">Ej 2 · Par/Impar</a></li>
+    <li><a href="#ej3">Ej 3 · Dígitos</a></li>
+    <li><a href="#ayuda">Ayuda memoria</a></li>
+    <li><a href="#conclusiones">Conclusión</a></li>
+  </ul>
+</nav>
+
+<!-- ============ HERO ============ -->
+<section id="hero">
+  <svg class="hero-net" viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid slice" id="heroNet"></svg>
+  <div class="wrap">
+    <div class="hero-tag reveal">
+      <span>Fundamentos de Redes Neuronales</span>
+      <span>·</span>
+      <span><b>UNAHUR</b> — Tec. en Inteligencia Artificial</span>
+    </div>
+    <h1 class="reveal d1">Perceptrón<br><span class="ital">multicapa</span></h1>
+    <p class="hero-sub reveal d2">De la entrada a la salida, y de la salida hacia atrás para aprender — los 3 problemas del TP2, paso a paso.</p>
+    <div class="hero-meta reveal d3">
+      <span class="chip"><span class="k">TP</span> Trabajo Práctico 2</span>
+      <span class="chip ghost">Docente · Emiliano Churruca</span>
+      <span class="chip ghost" id="fechaChip">Mayo 2026</span>
+    </div>
+    <div class="hero-meta reveal d4" style="margin-top:14px">
+      <span class="chip ghost">Integrantes: <span style="color:var(--blue);margin-left:.4em">Bertolani Camila · Molina Claudio</span></span>
+    </div>
+  </div>
+  <div class="scroll-hint"><span class="bar"></span>Scrolleá para empezar</div>
+</section>
+
+<!-- ============ MÉTODO ============ -->
+<section id="metodo">
+  <span class="secnum">01</span>
+  <div class="wrap">
+    <div class="eyebrow reveal">El método · backpropagation</div>
+    <div class="grid-2">
+      <div>
+        <h2 class="reveal d1" style="font-size:clamp(2rem,5vw,3.4rem)">¿Cómo aprende una red con capa oculta?</h2>
+        <p class="lead reveal d2" style="margin-top:24px">En el perceptrón simple corregimos los pesos que unen la entrada con la salida. Pero, ¿cuál es el <em>error</em> de las neuronas de la capa del medio?</p>
+        <p class="reveal d3" style="margin-top:18px;color:var(--ink-soft);max-width:42ch">La respuesta es la <b>retropropagación</b>: se propaga el ejemplo hacia adelante (forward), se mide el error en la salida, y ese error <b>viaja hacia atrás</b> repartiéndose entre las neuronas ocultas mediante los pesos. Con eso se corrige toda la red.</p>
+      </div>
+      <div class="netcard reveal d2">
+        <div class="head"><span>Arquitectura [5 · 3 · 2]</span><span id="netState">listo</span></div>
+        <svg class="net" id="mlpNet" viewBox="0 0 460 360" aria-label="Red multicapa animada"></svg>
+        <div class="controls">
+          <button class="btn fwd" id="btnFwd">▶ Propagación hacia adelante</button>
+          <button class="btn bwd" id="btnBwd">◀ Retropropagación</button>
+          <button class="btn alt" id="btnReset">Reiniciar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- en palabras simples -->
+    <div class="simple">
+      <div class="scard fwd reveal">
+        <div class="tag">▶ Forward · ida (hacia adelante)</div>
+        <h4>La red da su respuesta</h4>
+        <p>Imaginá que tirás una pelota al aro. La <span class="hl">ida</span> es el tiro: le mostramos algo a la red (por ejemplo, la imagen de un número) y esa información <span class="hl">entra por un lado y sale por el otro</span> convertida en una respuesta.</p>
+        <p>Adentro, cada neurona hace una cuenta muy simple: agarra los datos que le llegan, les da más o menos importancia (eso son los <span class="hl">pesos</span>) y entrega un resultado. Así, paso a paso, la red dice: “esto es un 7”.</p>
+      </div>
+      <div class="scard bwd reveal d1">
+        <div class="tag">◀ Backprop · vuelta (hacia atrás)</div>
+        <h4>La red corrige sus errores</h4>
+        <p>Seguimos con la pelota: si erraste el tiro, mirás <span class="hl">cuánto te fuiste</span> y corregís para la próxima. La red hace lo mismo: compara su respuesta con la correcta y mide el <span class="hl">error</span>.</p>
+        <p>Lo difícil es saber <b>quién tuvo la culpa</b> adentro de la red. Para eso el error <span class="hl">vuelve hacia atrás</span> y le avisa a cada neurona cuánto se equivocó, así cada una se corrige un poquito. Repetir esto miles de veces = <b>aprender</b>. <span class="hl">A esa “vuelta” se la llama retropropagación.</span></p>
+      </div>
+    </div>
+
+    <!-- flow strip -->
+    <div class="minihead reveal" style="margin-top:46px">El recorrido de un dato, de punta a punta</div>
+    <div class="flow reveal d2">
+      <div class="step b1"><div class="lab">entrada</div><div class="val">ξ<sub>k</sub></div></div>
+      <div class="arrow">→</div>
+      <div class="step b1"><div class="lab">suma oculta</div><div class="val">h<sub>j</sub></div></div>
+      <div class="arrow">→</div>
+      <div class="step b2"><div class="lab">activación</div><div class="val">V<sub>j</sub></div></div>
+      <div class="arrow">→</div>
+      <div class="step b1"><div class="lab">suma salida</div><div class="val">H<sub>i</sub></div></div>
+      <div class="arrow">→</div>
+      <div class="step b2"><div class="lab">activación</div><div class="val">O<sub>i</sub></div></div>
+    </div>
+
+    <!-- símbolos -->
+    <div class="minihead reveal">Cómo leer las fórmulas — qué es cada símbolo</div>
+    <div class="symbols reveal d1">
+      <div class="sym"><b>ξ</b><span>cada entrada (un píxel, un dato)</span></div>
+      <div class="sym"><b>w · W</b><span>los pesos de las conexiones</span></div>
+      <div class="sym"><b>h</b><span>la suma ponderada (excitación)</span></div>
+      <div class="sym"><b>g</b><span>función de activación (tanh / logística)</span></div>
+      <div class="sym"><b>V</b><span>salida de una neurona oculta</span></div>
+      <div class="sym"><b>O</b><span>salida final de la red</span></div>
+      <div class="sym"><b>ζ</b><span>la respuesta correcta (deseada)</span></div>
+      <div class="sym"><b>δ</b><span>el error que se reparte hacia atrás</span></div>
+      <div class="sym"><b>η · β</b><span>tasa de aprendizaje · forma de g</span></div>
+    </div>
+
+    <!-- formula cards -->
+    <div class="minihead reveal" style="margin-top:34px">Las mismas ideas, ahora en fórmulas</div>
+    <div class="fcards">
+      <div class="fcard reveal">
+        <h4><span class="num">1</span> Excitación oculta</h4>
+        <div class="formula">h<sub>j</sub> = Σ<sub>k</sub> w<sub>jk</sub> · ξ<sub>k</sub></div>
+        <p>Multiplica cada entrada por su peso y las suma. Es la “cuenta base” de la neurona.</p>
+      </div>
+      <div class="fcard reveal d1">
+        <h4><span class="num">2</span> Activación</h4>
+        <div class="formula">V<sub>j</sub> = g(h<sub>j</sub>)</div>
+        <p>“Aplasta” ese número a un rango suave (entre −1 y 1): la neurona decide cuánto se activa.</p>
+      </div>
+      <div class="fcard reveal d2">
+        <h4><span class="num">3</span> Salida</h4>
+        <div class="formula">O<sub>i</sub> = g(Σ<sub>j</sub> W<sub>ij</sub> · V<sub>j</sub>)</div>
+        <p>La salida repite lo mismo, pero usando las neuronas ocultas: suma ponderada + activación.</p>
+      </div>
+      <div class="fcard bp reveal">
+        <h4><span class="num">A</span> δ en la salida</h4>
+        <div class="formula">δ<sub>i</sub><sup>M</sup> = g′(h<sub>i</sub>)·(ζ<sub>i</sub> − O<sub>i</sub>)</div>
+        <p>Mide cuánto se equivocó cada salida: la respuesta correcta menos lo que dio la red.</p>
+      </div>
+      <div class="fcard bp reveal d1">
+        <h4><span class="num">B</span> δ retropropagado</h4>
+        <div class="formula">δ<sub>j</sub> = g′(h<sub>j</sub>)·Σ<sub>i</sub> W<sub>ij</sub> δ<sub>i</sub></div>
+        <p>Cada neurona oculta recibe su parte de la culpa, según cuánto influyó en el error.</p>
+      </div>
+      <div class="fcard bp reveal d2">
+        <h4><span class="num">C</span> Actualización</h4>
+        <div class="formula">Δw<sub>ij</sub><sup>m</sup> = η · δ<sub>i</sub><sup>m</sup> · V<sub>j</sub><sup>m−1</sup></div>
+        <p>Mueve cada peso un poquito (paso η) en la dirección que reduce el error.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ ALGORITMO ============ -->
+<section id="algoritmo" style="background:var(--paper-2)">
+  <span class="secnum">02</span>
+  <div class="wrap">
+    <div class="eyebrow reveal">El algoritmo · aprendizaje incremental</div>
+    <h2 class="reveal d1" style="font-size:clamp(2rem,5vw,3.2rem);max-width:18ch">Los 7 pasos que implementamos en <code style="font-family:var(--font-mono);font-size:.6em;color:var(--blue)">perceptron_multicapa()</code></h2>
+    <div class="algo" style="margin-top:40px">
+      <div class="astep reveal"><h4>Inicializar pesos</h4><p>Valores pequeños al azar en <code>[-0.1, 0.1]</code>, una matriz de pesos por cada par de capas consecutivas.</p></div>
+      <div class="astep reveal d1"><h4>Tomar un ejemplo</h4><p>Se elige un patrón <code>ξ<sup>μ</sup></code> al azar y se aplica a la capa 0 (entrada).</p></div>
+      <div class="astep reveal d2"><h4>Propagar adelante</h4><p>Se calcula <code>V<sub>i</sub><sup>m</sup> = g(Σ w·V)</code> capa por capa hasta la salida.</p></div>
+      <div class="astep reveal"><h4>δ de la salida</h4><p><code>δ<sup>M</sup> = g′(h)·(ζ − V<sup>M</sup>)</code>: cuánto se equivocó cada salida.</p></div>
+      <div class="astep reveal d1"><h4>Retropropagar δ</h4><p>Se calcula el δ de cada capa oculta usando los pesos de la capa siguiente.</p></div>
+      <div class="astep reveal d2"><h4>Actualizar pesos</h4><p><code>w += η·δ·V</code> para todas las conexiones de la red.</p></div>
+      <div class="astep reveal"><h4>Medir el error</h4><p>Si <code>error &gt; COTA</code> de iteraciones, volver al paso 2. Guardamos el mejor <code>w</code>.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ EJERCICIO 1 — XOR ============ -->
+<section id="ej1">
+  <span class="secnum">03</span>
+  <div class="wrap">
+    <div class="ex-head reveal">
+      <div style="display:flex;align-items:flex-end;gap:20px">
+        <div class="ex-num" style="color:var(--amber)">1</div>
+        <div>
+          <span class="ex-pill" style="background:var(--amber)">O exclusivo (XOR)</span>
+          <h2 class="ex-title" style="margin-top:10px">El problema que el perceptrón simple no podía</h2>
+        </div>
+      </div>
+    </div>
+
+    <div class="exgrid">
+      <div class="panel reveal d1">
+        <h3>El problema <span class="tg">qué se pide</span></h3>
+        <p style="color:var(--ink-soft)">Aprender la función lógica XOR: salida 1 cuando las entradas son distintas, −1 cuando son iguales. No es linealmente separable, así que <b>necesita la capa oculta</b>.</p>
+        <div class="spec" style="margin-top:14px">
+          <div><span>entradas x</span><b>{±1, ±1}</b></div>
+          <div><span>salida y</span><b>{1,1,−1,−1}</b></div>
+          <div><span>arquitectura</span><b>[2, 2, 1]</b></div>
+        </div>
+        <h3 style="margin-top:24px">Decisiones <span class="tg">por qué</span></h3>
+        <ul>
+          <li><b>Activación tanh</b>, no logística: la salida vive en <code>{1, −1}</code>, el rango natural de la tangente hiperbólica.</li>
+          <li><b>2 neuronas ocultas</b>: el mínimo para doblar el espacio y separar el XOR.</li>
+          <li>Se barren <b>η ∈ {0.1, 0.05, 0.01}</b> y <b>β ∈ {0.5, 0.75, 1.0}</b> para quedarnos con el de menor error.</li>
+        </ul>
+      </div>
+
+      <div class="reveal d2">
+        <div class="code">
+          <div class="bar"><i style="background:#ff5f56"></i><i style="background:#ffbd2e"></i><i style="background:#27c93f"></i><span class="t">tp_2/part_1.py · XOR</span></div>
+          <pre><code><span class="ln" data-s="1"><span class="tok-c"># entradas XOR y su salida esperada (±1)</span></span>
+<span class="ln" data-s="1">data_xor = np.array([[<span class="tok-n">-1</span>,<span class="tok-n">1</span>,<span class="tok-n">1</span>],[<span class="tok-n">1</span>,<span class="tok-n">-1</span>,<span class="tok-n">1</span>],</span>
+<span class="ln" data-s="1">                     [<span class="tok-n">-1</span>,<span class="tok-n">-1</span>,<span class="tok-n">-1</span>],[<span class="tok-n">1</span>,<span class="tok-n">1</span>,<span class="tok-n">-1</span>]])</span>
+<span class="ln" data-s="2"><span class="tok-k">for</span> n <span class="tok-k">in</span> N:           <span class="tok-c"># tasa de aprendizaje η</span></span>
+<span class="ln" data-s="2">  <span class="tok-k">for</span> b <span class="tok-k">in</span> B:         <span class="tok-c"># constante β de la activación</span></span>
+<span class="ln" data-s="3">    w, error, it = <span class="tok-f">perceptron_multicapa</span>(</span>
+<span class="ln" data-s="3">        train_data, n, COTA=<span class="tok-n">10000</span>,</span>
+<span class="ln" data-s="3">        β=b, layers=[<span class="tok-n">2</span>,<span class="tok-n">2</span>,<span class="tok-n">1</span>], tanh_mode=<span class="tok-k">True</span>)</span>
+<span class="ln" data-s="4">    <span class="tok-c"># nos quedamos con el de menor error</span></span></code></pre>
+        </div>
+        <div class="codenote"><span class="b">i</span><span><b>tanh_mode=True</b> activa <code style="font-family:var(--font-mono)">g(h)=tanh(βh)</code> y su derivada <code style="font-family:var(--font-mono)">β(1−g²)</code>, ideal para salidas en {1,−1}.</span></div>
+      </div>
+    </div>
+
+    <div class="result reveal d2" style="margin-top:36px">
+      <div class="metric"><div class="v">[2,2,1]</div><div class="l">red mínima</div></div>
+      <div class="metric"><div class="v">tanh</div><div class="l">activación</div></div>
+      <div class="metric"><div class="v">η, β</div><div class="l">se barren varias</div></div>
+      <div class="metric"><div class="v">10000</div><div class="l">iteraciones (COTA)</div></div>
+    </div>
+    <p class="reveal" style="margin-top:20px;color:var(--ink-soft);max-width:62ch">
+      <b>La idea:</b> con la capa del medio la red puede separar el XOR, algo imposible para un perceptrón de una sola capa. Lo más difícil es encontrar los valores de η y β: si son muy grandes la red “se pasa” y no aprende; si son muy chicos, casi no se mueve y se queda estancada. Por eso se prueban varias combinaciones y se elige la mejor.
+    </p>
+  </div>
+</section>
+
+<!-- ============ EJERCICIO 2 — PAR / IMPAR ============ -->
+<section id="ej2" style="background:var(--paper-2)">
+  <span class="secnum">04</span>
+  <div class="wrap">
+    <div class="ex-head reveal">
+      <div style="display:flex;align-items:flex-end;gap:20px">
+        <div class="ex-num" style="color:var(--teal)">2</div>
+        <div>
+          <span class="ex-pill" style="background:var(--teal)">¿Par o impar?</span>
+          <h2 class="ex-title" style="margin-top:10px">Imágenes de 5×7 píxeles → una decisión binaria</h2>
+        </div>
+      </div>
+    </div>
+
+    <p class="reveal d1" style="max-width:60ch;color:var(--ink-soft);margin-bottom:30px">
+      Cada dígito del 0 al 9 es una imagen de <b>5×7 = 35 píxeles</b>. La red recibe esos 35 valores y decide si el número es par o impar. <b>Entrenamos con un subconjunto y testeamos con el resto</b> para medir su capacidad de <em>generalizar</em>.
+    </p>
+
+    <div class="panel reveal d1" style="margin-bottom:30px">
+      <div class="toolbar">
+        <button class="btn" id="btnParity">▶ Resaltar par / impar</button>
+        <div class="legend">
+          <span><i style="background:var(--ink)"></i> píxel activo (1)</span>
+          <span><i style="background:var(--teal)"></i> par</span>
+          <span><i style="background:var(--amber)"></i> impar</span>
+        </div>
+      </div>
+      <div class="digits" id="digitsParity"></div>
+    </div>
+
+    <div class="exgrid">
+      <div class="panel reveal d1">
+        <h3>Decisiones <span class="tg">cómo</span></h3>
+        <ul>
+          <li>Entrada de <b>35 neuronas</b> (un píxel = una entrada) y <b>2 salidas</b>: una marca "par" y la otra "impar" (<code>par=[−1,1]</code>, <code>impar=[1,−1]</code>).</li>
+          <li>Capa oculta de <b>50 neuronas</b> → red <code>[35, 50, 2]</code>.</li>
+          <li>Entrenamos con un <b>subconjunto</b> de los dígitos y dejamos el resto para <b>testear</b> (lo que pide el TP), así medimos si generaliza.</li>
+          <li>La predicción se lee con <code>argmax</code>: gana la salida más alta.</li>
+        </ul>
+        <div class="spec" style="margin-top:14px">
+          <div><span>arquitectura</span><b>[35, 50, 2]</b></div>
+          <div><span>para test</span><b>10%</b></div>
+          <div><span>salidas</span><b>par / impar</b></div>
+        </div>
+      </div>
+
+      <div class="reveal d2">
+        <div class="code">
+          <div class="bar"><i style="background:#ff5f56"></i><i style="background:#ffbd2e"></i><i style="background:#27c93f"></i><span class="t">tp_2/part_1.py · par/impar</span></div>
+          <pre><code><span class="ln"><span class="tok-c"># cada imagen 5x7 -&gt; 35 bits de entrada</span></span>
+<span class="ln">impar, par = <span class="tok-f">outputs_multicapa</span>(<span class="tok-n">2</span>, min=<span class="tok-n">-1</span>, max=<span class="tok-n">1</span>)</span>
+<span class="ln"><span class="tok-k">for</span> idx <span class="tok-k">in</span> <span class="tok-f">range</span>(<span class="tok-f">len</span>(number_bits)):</span>
+<span class="ln">    target = par <span class="tok-k">if</span> idx%<span class="tok-n">2</span>==<span class="tok-n">0</span> <span class="tok-k">else</span> impar</span>
+<span class="ln">    labeled_data.append(number_bits[idx] + target)</span>
+<span class="ln"></span>
+<span class="ln"><span class="tok-c"># separo un subconjunto para test, el resto entrena</span></span>
+<span class="ln">test, train = <span class="tok-f">split_test_data</span>(labeled_data,</span>
+<span class="ln">                  shuffle_data=<span class="tok-k">True</span>, test_size=<span class="tok-n">0.1</span>)</span>
+<span class="ln">w, error, it = <span class="tok-f">perceptron_multicapa</span>(train,</span>
+<span class="ln">      n=n, COTA=<span class="tok-n">1000</span>, β=b, layers=[<span class="tok-n">35</span>,<span class="tok-n">50</span>,<span class="tok-n">2</span>])</span></code></pre>
+        </div>
+        <div class="codenote"><span class="b">i</span><span>El acierto se mide comparando <code style="font-family:var(--font-mono)">argmax(predicho) == argmax(esperado)</code> sobre el dígito que la red <b>nunca vio</b> durante el entrenamiento.</span></div>
+      </div>
+    </div>
+
+    <div class="result reveal" style="margin-top:36px">
+      <div class="metric"><div class="v" style="color:var(--teal)">0.004</div><div class="l">error de entrenamiento</div></div>
+      <div class="metric"><div class="v">9 / 1</div><div class="l">dígitos: entrenar / testear</div></div>
+      <div class="metric"><div class="v">[35,50,2]</div><div class="l">arquitectura</div></div>
+      <div class="metric"><div class="v">η0.1 · β1.0</div><div class="l">mejor combinación</div></div>
+    </div>
+
+    <div class="panel reveal" style="margin-top:30px;border-top:4px solid var(--teal)">
+      <h3>Sobre la generalización <span class="tg">la pregunta del TP</span></h3>
+      <p style="color:var(--ink-soft);max-width:72ch">La red aprende <b>perfecto</b> los dígitos que ve (error casi cero). Pero como hay sólo 10 dígitos, entrenamos con 9 y testeamos con 1: con una sola imagen de prueba <b>no alcanza para asegurar que generaliza bien</b>.</p>
+      <p style="color:var(--ink-soft);margin:0;max-width:72ch">Y hay un problema de fondo: <b>no hay una relación visual entre cómo se dibuja un número y si es par o impar</b>. El 2 y el 8 no “se parecen” por ser pares. Sin esa pista, y con tan pocos ejemplos, a la red le cuesta mucho sacar la regla. <span class="hl">Es un buen ejemplo de la diferencia entre aprender de memoria y entender de verdad.</span></p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ EJERCICIO 3 — DÍGITOS + RUIDO ============ -->
+<section id="ej3">
+  <span class="secnum">05</span>
+  <div class="wrap">
+    <div class="ex-head reveal">
+      <div style="display:flex;align-items:flex-end;gap:20px">
+        <div class="ex-num" style="color:var(--violet)">3</div>
+        <div>
+          <span class="ex-pill" style="background:var(--violet)">Identificar el dígito 0–9</span>
+          <h2 class="ex-title" style="margin-top:10px">10 salidas, una por dígito — y resistencia al ruido</h2>
+        </div>
+      </div>
+    </div>
+
+    <p class="reveal d1" style="max-width:62ch;color:var(--ink-soft);margin-bottom:30px">
+      Misma entrada que el ejercicio 2 (35 píxeles), pero ahora <b>10 unidades de salida</b>: si entra el 7, la salida #7 se enciende y las demás quedan apagadas. Después le metemos <b>ruido</b> — con probabilidad 0.02 invertimos cada bit — y vemos si la red sigue acertando.
+    </p>
+
+    <div class="panel reveal d1" style="margin-bottom:30px">
+      <div class="toolbar">
+        <button class="btn alt" id="btnNoise">⚡ Aplicar ruido (p = 0.02)</button>
+        <button class="btn" id="btnClean">Limpiar</button>
+        <div class="legend">
+          <span><i style="background:var(--ink)"></i> original</span>
+          <span><i style="background:var(--violet)"></i> bit invertido por ruido</span>
+        </div>
+      </div>
+      <div class="digits" id="digitsNoise"></div>
+      <p style="font-family:var(--font-mono);font-size:.74rem;color:var(--ink-faint);margin:16px 0 0" id="noiseInfo">Bits invertidos: 0 — la imagen está intacta.</p>
+    </div>
+
+    <div class="exgrid">
+      <div class="reveal d1">
+        <div class="code">
+          <div class="bar"><i style="background:#ff5f56"></i><i style="background:#ffbd2e"></i><i style="background:#27c93f"></i><span class="t">tp_2/part_1.py · 0–9</span></div>
+          <pre><code><span class="ln"><span class="tok-c"># 10 salidas: el dígito d -&gt; se prende la salida #d</span></span>
+<span class="ln">base10 = <span class="tok-f">outputs_multicapa</span>(<span class="tok-n">10</span>, min=<span class="tok-n">-1</span>, max=<span class="tok-n">1</span>)</span>
+<span class="ln">labeled = [number_bits[i] + base10[i]</span>
+<span class="ln">                  <span class="tok-k">for</span> i <span class="tok-k">in</span> <span class="tok-f">range</span>(<span class="tok-n">10</span>)]</span>
+<span class="ln">w,error,it = <span class="tok-f">perceptron_multicapa</span>(labeled,</span>
+<span class="ln">    n=n, COTA=<span class="tok-n">1000</span>, β=b, layers=[<span class="tok-n">35</span>,<span class="tok-n">50</span>,<span class="tok-n">10</span>])</span>
+<span class="ln"></span>
+<span class="ln"><span class="tok-c"># ruido: con prob. p intercambio cada bit (0&lt;-&gt;1)</span></span>
+<span class="ln"><span class="tok-k">def</span> <span class="tok-f">aplicar_ruido</span>(bits, p):</span>
+<span class="ln">  <span class="tok-k">return</span> [(<span class="tok-n">1</span>-b) <span class="tok-k">if</span> np.random.random()&lt;p <span class="tok-k">else</span> b</span>
+<span class="ln">          <span class="tok-k">for</span> b <span class="tok-k">in</span> bits]</span>
+<span class="ln"></span>
+<span class="ln">noisy = <span class="tok-f">aplicar_ruido</span>(number_bits[d], <span class="tok-n">0.02</span>)</span>
+<span class="ln">pred = <span class="tok-f">evaluar_perceptron_multicapa</span>(noisy, w, <span class="tok-n">10</span>)</span>
+<span class="ln"><span class="tok-k">if</span> np.<span class="tok-f">argmax</span>(base10[d]) == np.<span class="tok-f">argmax</span>(pred): aciertos += <span class="tok-n">1</span></span></code></pre>
+        </div>
+        <div class="codenote"><span class="b">i</span><span>La red <code style="font-family:var(--font-mono)">[35,50,10]</code> aprende una representación interna del dígito. Si está bien entrenada, el ruido leve cambia píxeles pero la salida correcta sigue ganando el argmax.</span></div>
+      </div>
+
+      <div class="panel reveal d2">
+        <h3>Decisiones y resultados <span class="tg">qué pasó</span></h3>
+        <ul>
+          <li>Salida de <b>10 neuronas</b>: cada una “vota” por un dígito; gana la más alta (<code>argmax</code>).</li>
+          <li>Una vez entrenada, el TP pide volver a mostrarle los dígitos pero con <b>ruido</b>: con probabilidad <b>0.02</b> se invierte cada bit (un píxel prendido se apaga y viceversa).</li>
+          <li>La idea es ver si la red, que aprendió la <em>forma</em> del dígito y no los píxeles exactos, <b>sigue acertando</b> aunque la imagen llegue un poco sucia.</li>
+          <li>Probamos <b>tanh y logística</b> × η × β y nos quedamos con el modelo de menor error.</li>
+        </ul>
+        <div class="result" style="margin-top:18px">
+          <div class="metric"><div class="v" style="color:var(--violet)">10</div><div class="l">salidas (una por dígito)</div></div>
+          <div class="metric"><div class="v">0.02</div><div class="l">prob. de ruido por bit</div></div>
+          <div class="metric"><div class="v">[35,50,10]</div><div class="l">arquitectura</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ AYUDA MEMORIA ============ -->
+<section id="ayuda">
+  <span class="secnum">06</span>
+  <div class="wrap">
+    <div class="eyebrow reveal">Ayuda memoria · para no quedarte trabado</div>
+    <h2 class="reveal d1" style="font-size:clamp(2rem,5vw,3.2rem);max-width:20ch">Lo que hay que tener claro (en palabras fáciles)</h2>
+    <p class="reveal d2" style="max-width:60ch;color:var(--ink-soft);margin-top:18px">Si te perdés con alguna palabra, acá está cada una explicada como si se la contaras a un amigo que nunca escuchó del tema.</p>
+
+    <!-- glosario en una frase -->
+    <div class="minihead reveal" style="margin-top:40px">Cada palabra, en una frase</div>
+    <div class="glossary">
+      <div class="gterm reveal"><b>Neurona</b><p>Una cuentita chica: recibe números, los combina y devuelve un resultado. Sola no hace mucho; juntas, sí.</p></div>
+      <div class="gterm reveal d1"><b>Capa oculta</b><p>La fila de neuronas del medio. Es la que le da “poder” a la red para resolver cosas difíciles como el XOR.</p></div>
+      <div class="gterm reveal d2"><b>Peso (w)</b><p>Qué tanta importancia le da una neurona a cada dato que recibe. Aprender = ir ajustando estos pesos.</p></div>
+      <div class="gterm reveal"><b>Función de activación (g)</b><p>Un “filtro” que aplasta el resultado a un rango chico (entre −1 y 1). Decide cuánto se prende la neurona.</p></div>
+      <div class="gterm reveal d1"><b>Propagación hacia adelante (forward)</b><p>La “ida”: el dato entra por un lado y sale por el otro convertido en respuesta.</p></div>
+      <div class="gterm reveal d2"><b>Retropropagación (backpropagation)</b><p>La “vuelta”: el error sale de la salida y viaja hacia atrás avisándole a cada neurona cuánto se equivocó, para que se corrija.</p></div>
+      <div class="gterm reveal"><b>Error</b><p>Qué tan lejos estuvo la respuesta de la red de la respuesta correcta. Cuanto más chico, mejor aprendió.</p></div>
+      <div class="gterm reveal d1"><b>δ (delta)</b><p>La “porción de culpa” de cada neurona en ese error. Es lo que viaja hacia atrás en la retropropagación.</p></div>
+      <div class="gterm reveal d2"><b>η (eta) · tasa de aprendizaje</b><p>El tamaño del paso al corregir. Grande = avanza rápido pero se puede pasar; chico = seguro pero lento.</p></div>
+      <div class="gterm reveal"><b>β (beta)</b><p>Regula la forma de la función de activación (qué tan “brusco” es el filtro).</p></div>
+      <div class="gterm reveal d1"><b>Época</b><p>Una vuelta completa mirando todos los ejemplos una vez. Se entrena durante muchas épocas.</p></div>
+      <div class="gterm reveal d2"><b>Una salida por dígito</b><p>Cada respuesta posible tiene su propia neurona de salida. Para el 7, se prende la salida #7 y el resto quedan apagadas.</p></div>
+      <div class="gterm reveal"><b>argmax</b><p>“La que más se prendió gana”. Mira todas las salidas y elige la del valor más alto como respuesta final.</p></div>
+      <div class="gterm reveal d1"><b>Generalizar</b><p>Acertar con ejemplos NUEVOS que nunca vio, no sólo con los que estudió. Es la prueba de que entendió de verdad.</p></div>
+      <div class="gterm reveal d2"><b>Test (prueba)</b><p>Separar algunos ejemplos y NO usarlos para entrenar, para después probar la red con ellos y ver si generaliza.</p></div>
+    </div>
+
+    <!-- preguntas del profe -->
+    <div class="minihead reveal" style="margin-top:50px">Si el profe te pregunta…</div>
+    <div class="simple" style="grid-template-columns:1fr 1fr">
+      <div class="scard reveal" style="border-top:4px solid var(--blue)">
+        <h4>¿Por qué el perceptrón simple no puede con el XOR?</h4>
+        <p style="color:var(--ink-soft)">Porque el XOR no se puede separar con una sola línea recta. El perceptrón simple sólo sabe trazar una recta, y para el XOR hace falta algo más. La <b>capa oculta</b> le permite “doblar” esa separación y resolverlo.</p>
+      </div>
+      <div class="scard reveal d1" style="border-top:4px solid var(--blue)">
+        <h4>¿Cómo aprende la red? / ¿Qué es la retropropagación?</h4>
+        <p style="color:var(--ink-soft)">Da una respuesta (ida), mide cuánto se equivocó, y ese error <b>vuelve hacia atrás</b> repartiéndose entre las neuronas. Cada una ajusta sus pesos un poquito. Repitiendo eso miles de veces, la red va fallando cada vez menos.</p>
+      </div>
+      <div class="scard reveal" style="border-top:4px solid var(--amber)">
+        <h4>¿Para qué sirven η y β? ¿Qué pasa si los ponés mal?</h4>
+        <p style="color:var(--ink-soft)">η es el tamaño del paso al corregir y β regula la activación. Si son <b>muy grandes</b>, la red “se pasa” y no aprende (diverge); si son <b>muy chicos</b>, casi no se mueve y se queda estancada. Por eso probamos varias combinaciones y elegimos la mejor.</p>
+      </div>
+      <div class="scard reveal d1" style="border-top:4px solid var(--amber)">
+        <h4>¿Por qué usaron tanh y no la logística?</h4>
+        <p style="color:var(--ink-soft)">Porque las salidas que queríamos están en el rango <code>{−1, 1}</code>, que es justo el rango natural de la tangente hiperbólica (tanh). La logística da valores entre 0 y 1, que no encajaba tan bien.</p>
+      </div>
+      <div class="scard reveal" style="border-top:4px solid var(--teal)">
+        <h4>¿Por qué la red NO generaliza par/impar (40%)?</h4>
+        <p style="color:var(--ink-soft)">Porque no hay nada en <b>cómo se dibuja</b> un número que diga si es par o impar: el 2 y el 8 no “se parecen” por ser pares. Sin esa pista visual y con sólo 10 ejemplos, la red memoriza los que vio pero no puede deducir la regla para uno nuevo.</p>
+      </div>
+      <div class="scard reveal d1" style="border-top:4px solid var(--teal)">
+        <h4>¿Qué es memorizar vs. generalizar (overfitting)?</h4>
+        <p style="color:var(--ink-soft)">Memorizar es acertar perfecto los ejemplos de estudio pero fallar con los nuevos (como Ej2). Generalizar es acertar también con los nuevos. Lo segundo es lo que de verdad queremos.</p>
+      </div>
+      <div class="scard reveal" style="border-top:4px solid var(--violet)">
+        <h4>¿Por qué la red aguanta el ruido?</h4>
+        <p style="color:var(--ink-soft)">Porque aprendió la <b>forma general</b> de cada dígito, no los píxeles exactos. Si cambiás unos pocos puntos, la imagen sigue “pareciéndose” al dígito correcto, así que la salida correcta sigue ganando. Por eso baja de a poco, no de golpe.</p>
+      </div>
+      <div class="scard reveal d1" style="border-top:4px solid var(--violet)">
+        <h4>¿Cómo decide la red qué dígito es? (argmax)</h4>
+        <p style="color:var(--ink-soft)">Tiene 10 salidas, una por dígito. Para marcar la respuesta correcta prendemos sólo la del dígito que toca. Para leer su respuesta usamos <b>argmax</b>: de las 10 salidas, gana la que quedó más alta.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CONCLUSIONES ============ -->
+<section id="conclusiones" style="background:var(--paper-2)">
+  <span class="secnum">07</span>
+  <div class="wrap">
+    <div class="eyebrow reveal">Conclusiones</div>
+    <h2 class="reveal d1" style="font-size:clamp(2rem,5vw,3.2rem);max-width:16ch;margin-bottom:40px">Lo que aprendimos del trabajo</h2>
+    <div class="concl">
+      <div class="ccard reveal" style="border-top-color:var(--blue)"><div class="ic">↘</div><h4>La capa oculta lo cambia todo</h4><p>Con backpropagation la red resuelve problemas no lineales (XOR) que el perceptrón simple no puede separar.</p></div>
+      <div class="ccard reveal d1" style="border-top-color:var(--amber)"><div class="ic">η β</div><h4>Los hiperparámetros importan</h4><p>η y β definen si la red converge, se estanca en una zona plana o diverge. Por eso barremos varias combinaciones.</p></div>
+      <div class="ccard reveal d2" style="border-top-color:var(--teal)"><div class="ic">≈</div><h4>Aprender ≠ generalizar</h4><p>En par/impar la red aprende perfecto lo que ve, pero con tan pocos datos y sin una pista visual entre forma y paridad, le cuesta acertar dígitos nuevos: tiende a memorizar más que a entender la regla.</p></div>
+      <div class="ccard reveal d3" style="border-top-color:var(--violet)"><div class="ic">⚡</div><h4>Robustez al ruido</h4><p>La idea del Ej3 es comprobar que una red bien entrenada reconoce los dígitos aunque les metamos ruido leve: aprendió la forma general, no copias exactas de cada píxel.</p></div>
+    </div>
+
+    <div class="eyebrow reveal" style="margin-top:70px">Mini glosario</div>
+    <div class="glossary">
+      <div class="gterm reveal"><b>Peso (w, W)</b><p>Importancia de una conexión entre neuronas.</p></div>
+      <div class="gterm reveal d1"><b>Excitación h</b><p>Suma ponderada antes de la activación.</p></div>
+      <div class="gterm reveal d2"><b>Activación V, O</b><p>Salida de la neurona tras aplicar g(h).</p></div>
+      <div class="gterm reveal"><b>δ (delta)</b><p>Error local que se retropropaga capa a capa.</p></div>
+      <div class="gterm reveal d1"><b>η (eta)</b><p>Tasa de aprendizaje: tamaño del paso al corregir.</p></div>
+      <div class="gterm reveal d2"><b>Época</b><p>Una pasada completa por todos los ejemplos.</p></div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="big">¡Gracias!</div>
+  Perceptrón Multicapa · TP2 · Fundamentos de Redes Neuronales · UNAHUR — Tecnicatura en Inteligencia Artificial<br>
+  <span style="opacity:.7">Implementación en Python · <code>tp_2/part_1.py</code> + <code>addons/functions.py</code></span>
+</footer>
+
+<script>
+/* ================= datos reales: 10 dígitos 5×7 ================= */
+const DIGITS = [
+ [0,1,1,1,0, 1,0,0,0,1, 1,0,0,1,1, 1,0,1,0,1, 1,1,0,0,1, 1,0,0,0,1, 0,1,1,1,0],
+ [0,0,1,0,0, 0,1,1,0,0, 0,0,1,0,0, 0,0,1,0,0, 0,0,1,0,0, 0,0,1,0,0, 0,1,1,1,0],
+ [0,1,1,1,0, 1,0,0,0,1, 0,0,0,0,1, 0,0,0,1,0, 0,0,1,0,0, 0,1,0,0,0, 1,1,1,1,1],
+ [0,1,1,1,0, 1,0,0,0,1, 0,0,0,0,1, 0,0,1,1,0, 0,0,0,0,1, 1,0,0,0,1, 0,1,1,1,0],
+ [0,0,0,1,0, 0,0,1,1,0, 0,1,0,1,0, 1,0,0,1,0, 1,1,1,1,1, 0,0,0,1,0, 0,0,0,1,0],
+ [1,1,1,1,1, 1,0,0,0,0, 1,1,1,1,0, 0,0,0,0,1, 0,0,0,0,1, 1,0,0,0,1, 0,1,1,1,0],
+ [0,0,1,1,0, 0,1,0,0,0, 1,0,0,0,0, 1,1,1,1,0, 1,0,0,0,1, 1,0,0,0,1, 0,1,1,1,0],
+ [1,1,1,1,1, 0,0,0,0,1, 0,0,0,1,0, 0,0,1,0,0, 0,1,0,0,0, 0,1,0,0,0, 0,1,0,0,0],
+ [0,1,1,1,0, 1,0,0,0,1, 1,0,0,0,1, 0,1,1,1,0, 1,0,0,0,1, 1,0,0,0,1, 0,1,1,1,0],
+ [0,1,1,1,0, 1,0,0,0,1, 1,0,0,0,1, 0,1,1,1,1, 0,0,0,0,1, 0,0,0,1,0, 0,1,1,0,0]
+];
+
+/* ================= reveal on scroll ================= */
+const io = new IntersectionObserver((entries)=>{
+  entries.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target);} });
+},{threshold:.12});
+document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+
+/* nav hide on scroll down */
+let lastY=0;const nav=document.getElementById('nav');
+addEventListener('scroll',()=>{const y=scrollY;nav.style.transform=(y>lastY&&y>140)?'translateY(-110%)':'none';lastY=y;});
+
+/* ================= render digit grids ================= */
+function makeGrid(arr, flipped){
+  const g=document.createElement('div');g.className='grid5x7';
+  arr.forEach((v,i)=>{const c=document.createElement('i');if(v)c.classList.add('on');g.appendChild(c);});
+  return g;
+}
+function buildDigits(container, withParity){
+  container.innerHTML='';
+  DIGITS.forEach((d,n)=>{
+    const wrap=document.createElement('div');wrap.className='digit';wrap.dataset.n=n;
+    wrap.appendChild(makeGrid(d));
+    const lab=document.createElement('div');lab.className='lab';
+    lab.innerHTML=`<span>${n}</span>`;
+    if(withParity){const pe=document.createElement('span');pe.className='pe';
+      const par=n%2===0;pe.textContent=par?'par':'impar';
+      pe.style.background=par?'rgba(22,150,122,.15)':'rgba(224,133,42,.15)';
+      pe.style.color=par?'var(--teal)':'var(--amber)';lab.appendChild(pe);}
+    wrap.appendChild(lab);
+    container.appendChild(wrap);
+  });
+}
+buildDigits(document.getElementById('digitsParity'),true);
+buildDigits(document.getElementById('digitsNoise'),false);
+
+/* parity highlight */
+let parityOn=false;
+document.getElementById('btnParity').addEventListener('click',function(){
+  parityOn=!parityOn;this.textContent=parityOn?'✦ Mostrar original':'▶ Resaltar par / impar';
+  document.querySelectorAll('#digitsParity .digit').forEach(w=>{
+    const n=+w.dataset.n;const par=n%2===0;
+    w.querySelectorAll('.grid5x7 i.on').forEach(c=>{
+      c.style.background=parityOn?(par?'var(--teal)':'var(--amber)'):'';
+    });
+  });
+});
+
+/* ================= noise (ej3) ================= */
+// deterministic pseudo-random so it looks alive but reproducible
+let seed=12345;function rnd(){seed=(seed*1103515245+12345)&0x7fffffff;return seed/0x7fffffff;}
+function applyNoise(p){
+  let flips=0;
+  document.querySelectorAll('#digitsNoise .digit').forEach(w=>{
+    const n=+w.dataset.n;const cells=w.querySelectorAll('.grid5x7 i');
+    cells.forEach((c,i)=>{
+      const orig=DIGITS[n][i];
+      if(rnd()<p){flips++;const now=orig?0:1;
+        if(now){c.classList.add('on');}else{c.classList.remove('on');}
+        c.style.background='var(--violet)';c.style.transform='scale(1.15)';
+      }else{
+        if(orig){c.classList.add('on');}else{c.classList.remove('on');}
+        c.style.background='';c.style.transform='';
+      }
+    });
+  });
+  document.getElementById('noiseInfo').textContent=
+    `Bits invertidos: ${flips} de 350 (${(flips/350*100).toFixed(1)}%) — con p=0.02 esperamos ~7 en total.`;
+}
+document.getElementById('btnNoise').addEventListener('click',()=>{seed=(seed+98765)&0x7fffffff;applyNoise(0.02);});
+document.getElementById('btnClean').addEventListener('click',()=>{
+  document.querySelectorAll('#digitsNoise .digit').forEach(w=>{
+    const n=+w.dataset.n;w.querySelectorAll('.grid5x7 i').forEach((c,i)=>{
+      if(DIGITS[n][i])c.classList.add('on');else c.classList.remove('on');
+      c.style.background='';c.style.transform='';});
+  });
+  document.getElementById('noiseInfo').textContent='Bits invertidos: 0 — la imagen está intacta.';
+});
+
+/* ================= MLP animated network (método) ================= */
+const NS='http://www.w3.org/2000/svg';
+const layers=[5,3,2];
+const W=460,H=360,padX=60,padY=30;
+const svg=document.getElementById('mlpNet');
+const colX=[padX, W/2, W-padX];
+let nodePos=[];let edges=[];
+function buildNet(){
+  svg.innerHTML='';nodePos=[];edges=[];
+  // labels
+  const labs=['ENTRADA ξ','OCULTA V','SALIDA O'];
+  layers.forEach((c,li)=>{
+    const t=document.createElementNS(NS,'text');
+    t.setAttribute('x',colX[li]);t.setAttribute('y',H-6);t.setAttribute('text-anchor','middle');
+    t.setAttribute('class','lyr-label');t.textContent=labs[li];svg.appendChild(t);
+  });
+  // positions
+  layers.forEach((count,li)=>{
+    const arr=[];const gap=(H-2*padY)/(count+ (count>1?-1:0) || 1);
+    for(let i=0;i<count;i++){
+      const y= count===1? H/2 : padY + i*((H-2*padY)/(count-1));
+      arr.push({x:colX[li],y});
+    }
+    nodePos.push(arr);
+  });
+  // edges
+  for(let li=0;li<layers.length-1;li++){
+    nodePos[li].forEach((a,ai)=>{
+      nodePos[li+1].forEach((b,bi)=>{
+        const l=document.createElementNS(NS,'line');
+        l.setAttribute('x1',a.x);l.setAttribute('y1',a.y);
+        l.setAttribute('x2',b.x);l.setAttribute('y2',b.y);
+        l.setAttribute('class','edge');l.dataset.from=li;l.dataset.fi=ai;l.dataset.ti=bi;
+        svg.appendChild(l);edges.push({el:l,from:li});
+      });
+    });
+  }
+  // nodes
+  nodePos.forEach((arr,li)=>{
+    arr.forEach((p,i)=>{
+      const c=document.createElementNS(NS,'circle');
+      c.setAttribute('cx',p.x);c.setAttribute('cy',p.y);c.setAttribute('r',15);
+      c.setAttribute('class','node'+(li===0?' in-l':''));c.dataset.layer=li;c.dataset.i=i;
+      svg.appendChild(c);
+    });
+  });
+}
+buildNet();
+const stateEl=document.getElementById('netState');
+function clearLit(){svg.querySelectorAll('.node,.edge').forEach(e=>e.classList.remove('lit-fwd','lit-bwd'));}
+function nodesAt(l){return [...svg.querySelectorAll(`.node[data-layer="${l}"]`)];}
+function edgesFrom(l){return edges.filter(e=>e.from===l).map(e=>e.el);}
+
+let busy=false;
+async function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
+async function forward(){
+  if(busy)return;busy=true;clearLit();stateEl.textContent='forward ▶';stateEl.style.color='var(--blue)';
+  for(let l=0;l<layers.length;l++){
+    nodesAt(l).forEach(n=>n.classList.add('lit-fwd'));
+    if(l<layers.length-1){edgesFrom(l).forEach(e=>e.classList.add('lit-fwd'));}
+    await sleep(620);
+  }
+  stateEl.textContent='salida O ✓';busy=false;
+}
+async function backward(){
+  if(busy)return;busy=true;clearLit();stateEl.textContent='backprop ◀';stateEl.style.color='var(--red)';
+  // light output first
+  for(let l=layers.length-1;l>=0;l--){
+    nodesAt(l).forEach(n=>n.classList.add('lit-bwd'));
+    if(l>0){edgesFrom(l-1).forEach(e=>e.classList.add('lit-bwd'));}
+    await sleep(620);
+  }
+  stateEl.textContent='pesos actualizados ✓';busy=false;
+}
+document.getElementById('btnFwd').addEventListener('click',forward);
+document.getElementById('btnBwd').addEventListener('click',backward);
+document.getElementById('btnReset').addEventListener('click',()=>{if(busy)return;clearLit();stateEl.textContent='listo';stateEl.style.color='var(--ink-faint)';});
+
+// auto-play forward once when scrolled into view
+const methodIO=new IntersectionObserver((es)=>{es.forEach(e=>{if(e.isIntersecting){forward();methodIO.disconnect();}});},{threshold:.4});
+methodIO.observe(document.getElementById('mlpNet'));
+
+/* ================= hero background network ================= */
+const hn=document.getElementById('heroNet');
+(function heroNet(){
+  const L=[6,5,4,2];const cols=L.length;const w=1200,h=800;
+  const xs=L.map((_,i)=>120+i*((w-240)/(cols-1)));
+  const pos=L.map((c,li)=>{const a=[];for(let i=0;i<c;i++){a.push({x:xs[li],y:120+i*((h-240)/(c-1))});}return a;});
+  let html='';
+  for(let li=0;li<cols-1;li++)pos[li].forEach(a=>pos[li+1].forEach(b=>{
+    html+=`<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="#2347d9" stroke-width="1" opacity="0.12"/>`;}));
+  pos.flat().forEach((p,i)=>{html+=`<circle cx="${p.x}" cy="${p.y}" r="9" fill="#101a2e" opacity="0.18"><animate attributeName="opacity" values="0.1;0.5;0.1" dur="${3+i%4}s" repeatCount="indefinite" begin="${i*0.2}s"/></circle>`;});
+  hn.innerHTML=html;
+})();
+
+/* fecha chip (mantener mes de la entrega) */
+</script>
+</body>
+</html>

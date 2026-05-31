@@ -531,3 +531,13 @@ def outputs_multicapa(size, max=1, min=-1):
     return outputs
 
 
+def agregar_ruido(bits, prob=0.02):
+    # Da vuelta cada pixel (0<->1) con probabilidad 'prob', como pide el enunciado.
+    # np.random.random arma un nro al azar [0,1) por pixel; donde cae por debajo
+    # de 'prob', invertimos ese bit.
+    bits = np.asarray(bits)
+    mascara = np.random.random(bits.shape) < prob
+    ruidoso = np.where(mascara, 1 - bits, bits)
+    return ruidoso.tolist()
+
+
