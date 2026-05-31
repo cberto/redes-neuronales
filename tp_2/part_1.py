@@ -17,66 +17,66 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 def tp2():
-    # data_y = np.array([[-1, 1, -1], [1, -1, -1], [-1, -1, -1], [1, 1, 1]])
-    # data_xor = np.array([[-1, 1, 1], [1, -1, 1], [-1, -1, -1], [1, 1, -1]])
+    data_y = np.array([[-1, 1, -1], [1, -1, -1], [-1, -1, -1], [1, 1, 1]])
+    data_xor = np.array([[-1, 1, 1], [1, -1, 1], [-1, -1, -1], [1, 1, -1]])
 
-    # config = {
-    #     "y": [
-    #         {
-    #             "cota": 10000,
-    #             "tanh_mode": True,
-    #             "layers": [2, 2, 1],
-    #         },
-    #     ],
-    #     "xor": [
-    #         {
-    #             "cota": 10000,
-    #             "tanh_mode": True,
-    #             "layers": [2, 2, 1],
-    #         },
-    #     ],
-    # }
+    config = {
+        "y": [
+            {
+                "cota": 10000,
+                "tanh_mode": True,
+                "layers": [2, 2, 1],
+            },
+        ],
+        "xor": [
+            {
+                "cota": 10000,
+                "tanh_mode": True,
+                "layers": [2, 2, 1],
+            },
+        ],
+    }
     N = [0.1, 0.05, 0.01]
     B = [0.5, 0.75, 1.0]
-    # # NO USAMOS LOGISTICA XQ LA SALIDA ES 1;-1
-    # result_pt1 = {}
-    # data_pt1 = {"y": data_y, "xor": data_xor}
-    # for n in N:
-    #     for b in B:
-    #         for config_type, values in config.items():
-    #             for config_data in values:
-    #                 train_data = data_pt1[config_type]
-    #                 COTA = config_data["cota"]
-    #                 tanh_mode = config_data["tanh_mode"]
-    #                 layers = config_data["layers"]
-    #                 w, error, iter = perceptron_multicapa(
-    #                     train_data, n, COTA, b, layers, tanh_mode
-    #                 )
-    #                 type = f"Taza de aprendizaje:{n}; Constante Beta:{b}"
-    #                 print(f"{config_type} con n={n}, b={b} - error final: {error:.4f}")
-    #                 if config_type not in result_pt1:
-    #                     result_pt1[config_type] = {}
-    #                 if type not in result_pt1[config_type]:
-    #                     result_pt1[config_type][type] = []
-    #                 result_pt1[config_type][type].append(
-    #                     {
-    #                         "n": n,
-    #                         "cota": COTA,
-    #                         "b": b,
-    #                         "tanh_mode": tanh_mode,
-    #                         "layers": layers,
-    #                         "w": w,
-    #                         "error_min": error,
-    #                         "iterations": iter,
-    #                     }
-    #                 )
-    # res_error_min_tp1 = {"error_min": float("inf"), "result": {}}
-    # for res_tp1 in result_pt1.values():
-    #     for res in res_tp1.values():
-    #         for r in res:
-    #             if r["error_min"] < res_error_min_tp1["error_min"]:
-    #                 res_error_min_tp1["error_min"] = r["error_min"]
-    #                 res_error_min_tp1["result"] = r
+    # NO USAMOS LOGISTICA XQ LA SALIDA ES 1;-1
+    result_pt1 = {}
+    data_pt1 = {"y": data_y, "xor": data_xor}
+    for n in N:
+        for b in B:
+            for config_type, values in config.items():
+                for config_data in values:
+                    train_data = data_pt1[config_type]
+                    COTA = config_data["cota"]
+                    tanh_mode = config_data["tanh_mode"]
+                    layers = config_data["layers"]
+                    w, error, iter = perceptron_multicapa(
+                        train_data, n, COTA, b, layers, tanh_mode
+                    )
+                    type = f"Taza de aprendizaje:{n}; Constante Beta:{b}"
+                    print(f"{config_type} con n={n}, b={b} - error final: {error:.4f}")
+                    if config_type not in result_pt1:
+                        result_pt1[config_type] = {}
+                    if type not in result_pt1[config_type]:
+                        result_pt1[config_type][type] = []
+                    result_pt1[config_type][type].append(
+                        {
+                            "n": n,
+                            "cota": COTA,
+                            "b": b,
+                            "tanh_mode": tanh_mode,
+                            "layers": layers,
+                            "w": w,
+                            "error_min": error,
+                            "iterations": iter,
+                        }
+                    )
+    res_error_min_tp1 = {"error_min": float("inf"), "result": {}}
+    for res_tp1 in result_pt1.values():
+        for res in res_tp1.values():
+            for r in res:
+                if r["error_min"] < res_error_min_tp1["error_min"]:
+                    res_error_min_tp1["error_min"] = r["error_min"]
+                    res_error_min_tp1["result"] = r
 
     path_sal = "./Documento/TP2-ej3-mapa-de-pixeles-digitos-decimales.txt"
     datos_sal = cargar_txt(path_sal)
@@ -153,12 +153,8 @@ def tp2():
     accuracy_pt2 = (aciertos_pt2 / len(test_data)) * 100 if len(test_data) > 0 else 0
     mejor_resultado_pt2["accuracy"] = accuracy_pt2
     
-    # PT3: identificar los 10 dígitos. Acá NO hacemos leave-one-out (no dejamos
-    # clases afuera): si escondemos un dígito, su neurona de salida nunca se
-    # entrena y es imposible predecirlo. El enunciado pide entrenar con los
-    # dígitos y luego testear con esos MISMOS dígitos pero con ruido (prob 0,02).
-    PROB_RUIDO = 0.02          # probabilidad de invertir cada pixel en el test
-    COPIAS_POR_DIGITO = 10     # cuántas versiones ruidosas generamos por dígito
+    PROB_RUIDO = 0.02          
+    COPIAS_POR_DIGITO = 10   
     modelos_entrenados_pt3 = []
     for mode_idx in range(2):
         for n in N:
@@ -203,7 +199,7 @@ def tp2():
     tanh_mode = hiperparams["tanh_mode"]
 
     print(f"\n--- Evaluación PT3 (Identificación 0-9 con ruido) ---")
-    # Test set: copias ruidosas de cada uno de los 10 dígitos de entrenamiento
+    
     num_outputs = 10
     aciertos_pt3 = 0
     total_pt3 = 0
@@ -225,14 +221,14 @@ def tp2():
     print(f"Accuracy PT3: {accuracy_pt3:.2f}%")
     
     # Limpieza de datos pesados para el print final
-    for res in [mejor_resultado_pt3, mejor_resultado_pt2]:
-        if "model" in res:
-            res["model"].pop("w", None)
-            res["model"].pop("test_data", None)
+    # for res in [mejor_resultado_pt3, mejor_resultado_pt2]:
+    #     if "model" in res:
+    #         res["model"].pop("w", None)
+    #         res["model"].pop("test_data", None)
 
     return {
         #"pt1": res_error_min_tp1,
-        "pt2": mejor_resultado_pt2,
+        #"pt2": mejor_resultado_pt2,
         "pt3": mejor_resultado_pt3,
     }
 
