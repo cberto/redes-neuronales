@@ -1,0 +1,1038 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Perceptrón Simple · TP1 — paso a paso</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,900;1,9..144,500&family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<style>
+/* ============================== TOKENS ============================== */
+:root{
+  --paper:#f4efe3;
+  --paper-2:#ece5d4;
+  --ink:#101a2e;
+  --ink-soft:#33405a;
+  --ink-faint:#6b7791;
+  --line:#cdc4ad;
+  --line-strong:#b6a988;
+
+  --blue:#2347d9;        /* perceptrón / forward */
+  --blue-bright:#3b6bff;
+  --teal:#16967a;        /* AND · separable · funciona */
+  --red:#d6304a;         /* XOR · no separable · falla */
+  --amber:#e0852a;       /* lineal */
+  --violet:#8b2fb0;      /* no lineal (tanh / logística) */
+
+  --shadow: 0 1px 0 #fffdf6 inset, 0 18px 40px -22px rgba(16,26,46,.45);
+  --radius:18px;
+  --maxw:1180px;
+  --font-display:'Fraunces',Georgia,serif;
+  --font-body:'Hanken Grotesk',system-ui,sans-serif;
+  --font-mono:'JetBrains Mono',monospace;
+}
+
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;
+  font-family:var(--font-body);
+  color:var(--ink);
+  background:var(--paper);
+  background-image:
+    linear-gradient(rgba(16,26,46,.045) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(16,26,46,.045) 1px,transparent 1px);
+  background-size:26px 26px;
+  line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+  overflow-x:hidden;
+}
+/* grain overlay */
+body::before{
+  content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;opacity:.45;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.25'/%3E%3C/svg%3E");
+  mix-blend-mode:multiply;
+}
+::selection{background:var(--blue);color:#fff}
+
+a{color:inherit}
+h1,h2,h3{font-family:var(--font-display);font-weight:900;line-height:1.02;letter-spacing:-.02em;margin:0}
+p{margin:0 0 1em}
+
+/* ============================== NAV ============================== */
+nav{
+  position:fixed;top:0;left:0;right:0;z-index:100;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px clamp(16px,4vw,46px);
+  background:rgba(244,239,227,.82);
+  backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--line);
+  transition:transform .4s ease;
+}
+nav .brand{font-family:var(--font-mono);font-weight:700;font-size:.82rem;letter-spacing:.12em;text-transform:uppercase;display:flex;gap:.6em;align-items:center}
+nav .brand .dot{width:11px;height:11px;border-radius:50%;background:var(--blue);box-shadow:0 0 0 3px rgba(35,71,217,.18)}
+nav ul{display:flex;gap:clamp(8px,1.8vw,26px);list-style:none;margin:0;padding:0;font-family:var(--font-mono);font-size:.74rem;letter-spacing:.04em;text-transform:uppercase}
+nav ul a{text-decoration:none;color:var(--ink-soft);position:relative;padding:4px 2px;transition:color .2s}
+nav ul a::after{content:"";position:absolute;left:0;bottom:-2px;height:2px;width:0;background:var(--blue);transition:width .25s}
+nav ul a:hover{color:var(--ink)}
+nav ul a:hover::after{width:100%}
+@media(max-width:760px){nav ul{display:none}}
+
+/* ============================== LAYOUT ============================== */
+section{position:relative;padding:clamp(70px,9vw,130px) clamp(16px,4vw,46px)}
+.wrap{max-width:var(--maxw);margin:0 auto}
+.eyebrow{font-family:var(--font-mono);font-size:.76rem;letter-spacing:.22em;text-transform:uppercase;color:var(--blue);font-weight:700;display:inline-flex;align-items:center;gap:.7em;margin-bottom:1.1em}
+.eyebrow::before{content:"";width:34px;height:2px;background:var(--blue)}
+
+/* reveal */
+.reveal{opacity:0;transform:translateY(34px);transition:opacity .7s cubic-bezier(.2,.7,.2,1),transform .7s cubic-bezier(.2,.7,.2,1)}
+.reveal.in{opacity:1;transform:none}
+.reveal.d1{transition-delay:.08s}.reveal.d2{transition-delay:.16s}.reveal.d3{transition-delay:.24s}.reveal.d4{transition-delay:.32s}.reveal.d5{transition-delay:.4s}
+
+/* ============================== HERO ============================== */
+#hero{min-height:100vh;display:flex;align-items:center;padding-top:120px;overflow:hidden}
+#hero .wrap{position:relative;z-index:2}
+.hero-tag{font-family:var(--font-mono);font-size:.8rem;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:1.4em;display:flex;flex-wrap:wrap;gap:.5em 1.4em}
+.hero-tag b{color:var(--blue)}
+#hero h1{font-size:clamp(3rem,10.5vw,9.2rem);letter-spacing:-.035em}
+#hero h1 .ital{font-style:italic;font-weight:500;color:var(--blue)}
+.hero-sub{font-family:var(--font-display);font-style:italic;font-weight:500;font-size:clamp(1.2rem,3vw,2rem);color:var(--ink-soft);max-width:32ch;margin-top:.5em}
+.hero-meta{display:flex;flex-wrap:wrap;gap:14px;margin-top:2.6em}
+.chip{font-family:var(--font-mono);font-size:.78rem;letter-spacing:.04em;background:var(--ink);color:var(--paper);padding:9px 16px;border-radius:40px;display:inline-flex;align-items:center;gap:.6em}
+.chip.ghost{background:transparent;color:var(--ink);border:1.5px solid var(--line-strong)}
+.chip .k{color:var(--blue-bright)}
+.scroll-hint{position:absolute;bottom:30px;left:clamp(16px,4vw,46px);font-family:var(--font-mono);font-size:.7rem;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);display:flex;align-items:center;gap:.8em}
+.scroll-hint .bar{width:1px;height:34px;background:var(--line-strong);position:relative;overflow:hidden}
+.scroll-hint .bar::after{content:"";position:absolute;top:-50%;left:0;width:100%;height:50%;background:var(--blue);animation:drip 1.8s infinite}
+@keyframes drip{0%{top:-50%}100%{top:100%}}
+
+.hero-net{position:absolute;inset:0;z-index:1;opacity:.5;pointer-events:none}
+
+/* ============================== METHOD / NEURONA ============================== */
+.lead{font-size:clamp(1.15rem,2.4vw,1.5rem);max-width:34ch;font-family:var(--font-display);font-weight:400;color:var(--ink);line-height:1.3}
+.grid-2{display:grid;grid-template-columns:1.1fr .9fr;gap:clamp(28px,5vw,64px);align-items:center}
+@media(max-width:900px){.grid-2{grid-template-columns:1fr}}
+
+.netcard{
+  background:linear-gradient(165deg,#fffdf7,#f0e9d8);
+  border:1px solid var(--line);border-radius:var(--radius);
+  box-shadow:var(--shadow);padding:24px;position:relative;
+}
+.netcard .head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-family:var(--font-mono);font-size:.74rem;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint)}
+.controls{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap}
+.btn{
+  font-family:var(--font-mono);font-size:.76rem;font-weight:700;letter-spacing:.04em;
+  border:1.5px solid var(--ink);background:var(--ink);color:var(--paper);
+  padding:10px 16px;border-radius:40px;cursor:pointer;transition:transform .15s,box-shadow .2s,background .2s;
+  display:inline-flex;align-items:center;gap:.5em;
+}
+.btn:hover{transform:translateY(-2px);box-shadow:0 10px 20px -10px rgba(16,26,46,.6)}
+.btn.alt{background:transparent;color:var(--ink)}
+.btn.fwd{border-color:var(--blue);background:var(--blue)}
+
+svg.net text{font-family:var(--font-mono);font-weight:700}
+.node{fill:#fffef9;stroke:var(--ink);stroke-width:2;transition:fill .3s,stroke .3s,filter .3s}
+.edge{stroke:var(--line-strong);stroke-width:1.4;fill:none;transition:stroke .3s,stroke-width .3s,opacity .3s;opacity:.55}
+.edge.lit-fwd{stroke:var(--blue);stroke-width:2.6;opacity:1}
+.node.lit-fwd{fill:var(--blue);stroke:var(--blue);filter:drop-shadow(0 0 10px rgba(35,71,217,.6))}
+.lyr-label{fill:var(--ink-faint);font-size:11px;letter-spacing:.1em;text-transform:uppercase}
+
+/* flow strip */
+.flow{display:flex;flex-wrap:wrap;align-items:stretch;gap:10px;margin-top:34px}
+.flow .step{
+  flex:1 1 120px;background:#fffdf7;border:1px solid var(--line);border-radius:14px;padding:14px 16px;position:relative;min-width:120px;
+}
+.flow .step .lab{font-family:var(--font-mono);font-size:.68rem;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint)}
+.flow .step .val{font-family:var(--font-display);font-size:1.5rem;font-weight:600;margin-top:2px}
+.flow .step.b1{border-bottom:3px solid var(--blue)}
+.flow .step.b2{border-bottom:3px solid var(--teal)}
+.flow .arrow{align-self:center;color:var(--blue);font-size:1.3rem}
+@media(max-width:640px){.flow .arrow{transform:rotate(90deg)}}
+
+/* formula cards */
+.fcards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-top:36px}
+.fcard{background:#fffdf7;border:1px solid var(--line);border-left:4px solid var(--blue);border-radius:14px;padding:18px 20px;box-shadow:var(--shadow)}
+.fcard.up{border-left-color:var(--teal)}
+.fcard h4{font-family:var(--font-mono);font-size:.74rem;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint);margin:0 0 10px;font-weight:700;display:flex;align-items:center;gap:.5em}
+.fcard .num{width:22px;height:22px;border-radius:50%;background:var(--blue);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:.72rem}
+.fcard.up .num{background:var(--teal)}
+.formula{font-family:var(--font-mono);font-size:1.02rem;background:var(--paper-2);border-radius:8px;padding:10px 12px;color:var(--ink);overflow-x:auto}
+.fcard p{font-size:.92rem;color:var(--ink-soft);margin:.7em 0 0}
+.formula sub{font-size:.7em}.formula sup{font-size:.7em}
+
+/* explicación en palabras simples */
+.simple{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:42px}
+@media(max-width:760px){.simple{grid-template-columns:1fr}}
+.scard{background:#fffdf7;border:1px solid var(--line);border-radius:var(--radius);padding:24px 26px;position:relative;box-shadow:var(--shadow)}
+.scard.fwd{border-top:4px solid var(--blue)}
+.scard.bwd{border-top:4px solid var(--teal)}
+.scard .tag{font-family:var(--font-mono);font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;font-weight:700;display:inline-flex;align-items:center;gap:.5em;margin-bottom:.7em}
+.scard.fwd .tag{color:var(--blue)}.scard.bwd .tag{color:var(--teal)}
+.scard h4{font-family:var(--font-display);font-weight:600;font-size:1.25rem;margin:0 0 .5em}
+.scard p{font-size:.96rem;color:var(--ink-soft);margin:0 0 .7em}
+.scard p:last-child{margin-bottom:0}
+.scard .hl{background:rgba(35,71,217,.13);padding:1px 5px;border-radius:5px;font-weight:600;color:var(--ink)}
+.scard.bwd .hl{background:rgba(22,150,122,.15)}
+
+/* leyenda de símbolos */
+.minihead{font-family:var(--font-mono);font-size:.78rem;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint);font-weight:700;margin:46px 0 6px;display:flex;align-items:center;gap:.7em}
+.minihead::before{content:"";width:22px;height:2px;background:var(--ink-faint)}
+.symbols{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0 0}
+.sym{display:flex;align-items:baseline;gap:.55em;background:var(--paper-2);border:1px solid var(--line);border-radius:10px;padding:8px 13px}
+.sym b{font-family:var(--font-mono);font-size:1rem;color:var(--blue)}
+.sym span{font-size:.82rem;color:var(--ink-soft)}
+
+/* ============================== ALGORITMO ============================== */
+.algo{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-top:8px;counter-reset:step}
+.astep{background:#fffdf7;border:1px solid var(--line);border-radius:14px;padding:20px 22px 18px;position:relative;overflow:hidden;transition:transform .25s,box-shadow .25s}
+.astep:hover{transform:translateY(-4px);box-shadow:0 18px 30px -20px rgba(16,26,46,.5)}
+.astep::before{counter-increment:step;content:counter(step,decimal-leading-zero);position:absolute;top:-14px;right:6px;font-family:var(--font-display);font-weight:900;font-size:3.6rem;color:rgba(35,71,217,.1)}
+.astep h4{font-size:1.05rem;font-family:var(--font-display);font-weight:600;margin-bottom:.3em}
+.astep p{font-size:.9rem;color:var(--ink-soft);margin:0}
+.astep code{font-family:var(--font-mono);font-size:.82rem;background:var(--paper-2);padding:1px 5px;border-radius:5px}
+
+/* ============================== EXERCISES ============================== */
+.ex-head{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;flex-wrap:wrap;border-bottom:2px solid var(--ink);padding-bottom:20px;margin-bottom:40px}
+.ex-num{font-family:var(--font-display);font-weight:900;font-size:clamp(3rem,9vw,7rem);line-height:.8;letter-spacing:-.04em}
+.ex-title{font-size:clamp(1.6rem,4vw,2.8rem)}
+.ex-pill{font-family:var(--font-mono);font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;padding:6px 14px;border-radius:40px;color:#fff;font-weight:700}
+
+.exgrid{display:grid;grid-template-columns:1fr 1fr;gap:clamp(22px,4vw,42px)}
+@media(max-width:880px){.exgrid{grid-template-columns:1fr}}
+
+.panel{background:#fffdf7;border:1px solid var(--line);border-radius:var(--radius);padding:26px;box-shadow:var(--shadow)}
+.panel h3{font-size:1.15rem;font-family:var(--font-display);font-weight:600;margin-bottom:.6em;display:flex;align-items:center;gap:.55em}
+.panel h3 .tg{font-family:var(--font-mono);font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;padding:3px 8px;border-radius:6px;background:var(--paper-2);color:var(--ink-faint);font-weight:700}
+.panel ul{margin:0;padding-left:1.1em}
+.panel li{margin-bottom:.55em;color:var(--ink-soft)}
+.panel li b{color:var(--ink)}
+
+.spec{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px}
+.spec div{background:var(--paper-2);border-radius:10px;padding:8px 12px;font-family:var(--font-mono);font-size:.78rem}
+.spec div span{color:var(--ink-faint);display:block;font-size:.66rem;letter-spacing:.06em;text-transform:uppercase}
+.spec div b{font-size:1rem}
+
+/* code block */
+.code{
+  background:#0e1828;border-radius:14px;overflow:hidden;border:1px solid #1d2c45;
+  font-family:var(--font-mono);font-size:.8rem;line-height:1.65;box-shadow:0 24px 40px -26px rgba(16,26,46,.8);
+}
+.code .bar{display:flex;align-items:center;gap:7px;padding:11px 16px;background:#0a1220;border-bottom:1px solid #1d2c45}
+.code .bar i{width:11px;height:11px;border-radius:50%;display:inline-block}
+.code .bar .t{margin-left:auto;font-size:.7rem;color:#5b6b86;letter-spacing:.06em}
+.code pre{margin:0;padding:16px 18px;overflow-x:auto;color:#cdd9ee}
+.code .ln{display:block;padding:1px 8px;border-radius:4px}
+.tok-k{color:#6ea8ff}.tok-f{color:#79e0c4}.tok-s{color:#e0a96d}.tok-c{color:#5b6b86;font-style:italic}.tok-n{color:#d98fd0}.tok-v{color:#e7eefc}
+
+.codenote{display:flex;gap:10px;align-items:flex-start;margin-top:14px;font-size:.86rem;color:var(--ink-soft)}
+.codenote .b{flex:none;width:24px;height:24px;border-radius:7px;background:var(--blue);color:#fff;font-family:var(--font-mono);font-weight:700;display:flex;align-items:center;justify-content:center;font-size:.74rem}
+
+/* plano AND/XOR */
+.plane-card{background:linear-gradient(165deg,#fffdf7,#f0e9d8);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:24px}
+.plane-card .head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-family:var(--font-mono);font-size:.74rem;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint)}
+.plane-wrap{display:flex;justify-content:center}
+svg.plane text{font-family:var(--font-mono);font-weight:700;font-size:12px}
+.pt{stroke:#fffdf7;stroke-width:2.5;transition:fill .35s,transform .35s}
+.pt.pos{fill:var(--blue)}
+.pt.neg{fill:var(--red)}
+.sepline{stroke:var(--teal);stroke-width:3;stroke-linecap:round;transition:opacity .3s}
+.plane-msg{font-family:var(--font-mono);font-size:.8rem;text-align:center;margin-top:14px;min-height:1.4em;font-weight:700}
+.legend{font-family:var(--font-mono);font-size:.72rem;color:var(--ink-faint);display:flex;gap:1em;flex-wrap:wrap;justify-content:center;margin-top:6px}
+.legend span{display:inline-flex;align-items:center;gap:.4em}
+.legend i{width:10px;height:10px;border-radius:3px;display:inline-block}
+
+/* gráfico de activaciones */
+.act-card{background:linear-gradient(165deg,#fffdf7,#f0e9d8);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:24px}
+svg.actplot text{font-family:var(--font-mono);font-size:11px}
+.actgrid{stroke:var(--line);stroke-width:1;opacity:.6}
+.actaxis{stroke:var(--ink-faint);stroke-width:1.4}
+.actcurve{fill:none;stroke-width:3;stroke-linejoin:round;stroke-linecap:round}
+.act-toolbar{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-top:16px}
+.act-toolbar .toggles{display:flex;gap:8px;flex-wrap:wrap}
+.tgl{font-family:var(--font-mono);font-size:.72rem;font-weight:700;border:1.5px solid var(--line-strong);background:transparent;color:var(--ink-soft);padding:7px 12px;border-radius:30px;cursor:pointer;display:inline-flex;align-items:center;gap:.45em;transition:all .2s}
+.tgl i{width:14px;height:3px;border-radius:3px;display:inline-block}
+.tgl.off{opacity:.4}
+.beta-control{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.beta-control input[type=range]{-webkit-appearance:none;appearance:none;height:6px;border-radius:6px;background:var(--line);width:170px;outline:none;cursor:pointer}
+.beta-control input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:20px;height:20px;border-radius:50%;background:var(--violet);border:3px solid #fffdf7;box-shadow:0 2px 6px rgba(16,26,46,.4);cursor:pointer}
+.beta-control input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;background:var(--violet);border:3px solid #fffdf7;cursor:pointer}
+.beta-val{font-family:var(--font-mono);font-weight:700;color:var(--violet);min-width:3.4em;font-size:.9rem}
+
+.result{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;margin-top:4px}
+.metric{background:linear-gradient(160deg,#fffdf7,#f0e9d8);border:1px solid var(--line);border-radius:14px;padding:16px 18px;text-align:left}
+.metric .v{font-family:var(--font-display);font-weight:900;font-size:2rem;line-height:1;letter-spacing:-.02em}
+.metric .l{font-family:var(--font-mono);font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint);margin-top:6px}
+
+/* ============================== CONCLUSION ============================== */
+.concl{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px}
+.ccard{background:#fffdf7;border:1px solid var(--line);border-radius:14px;padding:24px;border-top:4px solid var(--blue)}
+.ccard .ic{font-family:var(--font-display);font-weight:900;font-size:1.6rem;color:var(--blue)}
+.ccard h4{font-family:var(--font-display);font-weight:600;font-size:1.1rem;margin:.4em 0}
+.ccard p{font-size:.9rem;color:var(--ink-soft);margin:0}
+
+.glossary{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-top:14px}
+.gterm{background:var(--paper-2);border-radius:12px;padding:14px 16px}
+.gterm b{font-family:var(--font-mono);color:var(--blue);font-size:.9rem}
+.gterm p{margin:.3em 0 0;font-size:.85rem;color:var(--ink-soft)}
+
+footer{padding:40px clamp(16px,4vw,46px) 60px;border-top:1px solid var(--line);font-family:var(--font-mono);font-size:.76rem;color:var(--ink-faint);text-align:center}
+footer .big{font-family:var(--font-display);font-weight:900;font-size:clamp(2rem,7vw,5rem);color:var(--ink);letter-spacing:-.03em;line-height:1;margin-bottom:.3em}
+
+.secnum{position:absolute;top:clamp(40px,7vw,90px);right:clamp(16px,4vw,46px);font-family:var(--font-display);font-weight:900;font-size:clamp(2.4rem,5vw,4rem);color:var(--line);opacity:.7;z-index:0;will-change:transform}
+
+/* ============================== INTERACTIVO ============================== */
+#progress{position:fixed;top:0;left:0;height:3px;width:0;z-index:200;background:linear-gradient(90deg,var(--blue),var(--violet));transition:width .08s linear}
+nav ul a.active{color:var(--ink)}
+nav ul a.active::after{width:100%}
+.metric,.gterm,.ccard,.scard,.fcard,.sym{transition:transform .22s cubic-bezier(.2,.7,.2,1),box-shadow .22s}
+.metric:hover,.gterm:hover,.ccard:hover,.scard:hover,.fcard:hover{transform:translateY(-4px);box-shadow:0 18px 30px -20px rgba(16,26,46,.5)}
+.sym:hover{transform:translateY(-2px)}
+
+#recordatorio{position:fixed;bottom:20px;right:20px;z-index:150;max-width:300px;background:var(--ink);color:var(--paper);border-radius:14px;padding:14px 30px 14px 44px;box-shadow:0 18px 40px -18px rgba(16,26,46,.7);font-size:.86rem;line-height:1.45;opacity:0;transform:translateY(10px);pointer-events:none;transition:opacity .3s,transform .3s}
+#recordatorio.show{opacity:1;transform:none;pointer-events:auto}
+#recordatorio::before{content:"💡";position:absolute;left:14px;top:13px}
+#recordatorio .rtitle{font-family:var(--font-mono);font-size:.62rem;letter-spacing:.12em;text-transform:uppercase;color:var(--blue-bright);font-weight:700;margin-bottom:3px}
+#recordatorio .rclose{position:absolute;top:6px;right:11px;cursor:pointer;color:var(--ink-faint);font-size:1.1rem;line-height:1}
+#recordatorio .rclose:hover{color:var(--paper)}
+#recToggle{position:fixed;bottom:20px;right:20px;z-index:149;width:50px;height:50px;border-radius:50%;background:var(--ink);color:var(--paper);border:none;cursor:pointer;font-size:1.3rem;box-shadow:0 12px 28px -12px rgba(16,26,46,.7);display:none;align-items:center;justify-content:center}
+@media(max-width:760px){#recordatorio{max-width:210px;font-size:.78rem}}
+@media(prefers-reduced-motion:reduce){*{animation-duration:.001ms!important;transition-duration:.001ms!important}}
+</style>
+</head>
+<body>
+<div id="progress"></div>
+<div id="recordatorio">
+  <span class="rclose" id="recClose">×</span>
+  <div class="rtitle">Recordatorio</div>
+  <div class="rbody">Scrolleá para empezar.</div>
+</div>
+<button id="recToggle" title="Mostrar recordatorio">💡</button>
+
+<!-- ============ NAV ============ -->
+<nav id="nav">
+  <div class="brand"><span class="dot"></span>TP1 · Perceptrón simple</div>
+  <ul>
+    <li><a href="#hero">Inicio</a></li>
+    <li><a href="#metodo">El método</a></li>
+    <li><a href="#algoritmo">Algoritmo</a></li>
+    <li><a href="#ej1">Ej 1 · Y / XOR</a></li>
+    <li><a href="#ej2">Ej 2 · Lineal y no lineal</a></li>
+    <li><a href="#ayuda">Ayuda memoria</a></li>
+    <li><a href="#conclusiones">Conclusión</a></li>
+  </ul>
+</nav>
+
+<!-- ============ HERO ============ -->
+<section id="hero">
+  <svg class="hero-net" viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid slice" id="heroNet"></svg>
+  <div class="wrap">
+    <div class="hero-tag reveal">
+      <span>Fundamentos de Redes Neuronales</span>
+      <span>·</span>
+      <span><b>UNAHUR</b> — Tec. en Inteligencia Artificial</span>
+    </div>
+    <h1 class="reveal d1">Perceptrón<br><span class="ital">simple</span></h1>
+    <p class="hero-sub reveal d2">Una sola neurona que traza una raya: qué puede y qué no puede aprender — los 2 ejercicios del TP1, paso a paso.</p>
+    <div class="hero-meta reveal d3">
+      <span class="chip"><span class="k">TP</span> Trabajo Práctico 1</span>
+      <span class="chip ghost">Docente · Emiliano Churruca</span>
+      <span class="chip ghost" id="fechaChip">Entrega · 8 de abril 2026</span>
+    </div>
+    <div class="hero-meta reveal d4" style="margin-top:14px">
+      <span class="chip ghost">Integrantes: <span style="color:var(--blue);margin-left:.4em">Bertolani Camila · Molina Claudio</span></span>
+    </div>
+  </div>
+  <div class="scroll-hint"><span class="bar"></span>Scrolleá para empezar</div>
+</section>
+
+<!-- ============ MÉTODO ============ -->
+<section id="metodo">
+  <span class="secnum">01</span>
+  <div class="wrap">
+    <div class="eyebrow reveal">El método · una neurona</div>
+    <div class="grid-2">
+      <div>
+        <h2 class="reveal d1" style="font-size:clamp(2rem,5vw,3.4rem)">¿Qué hace un perceptrón simple?</h2>
+        <p class="lead reveal d2" style="margin-top:24px">Es la red más chica posible: <em>una sola neurona</em>. Recibe unos números, les da más o menos importancia y devuelve una respuesta. Nada más.</p>
+        <p class="reveal d3" style="margin-top:18px;color:var(--ink-soft);max-width:42ch">Adentro hace dos cuentas. Primero una <b>suma ponderada</b>: multiplica cada entrada por su <b>peso</b> y las suma (eso es la <em>excitación</em> h). Después le aplica una <b>función de activación</b> que convierte ese número en la salida final. Aprender = ir ajustando esos pesos para fallar cada vez menos.</p>
+      </div>
+      <div class="netcard reveal d2">
+        <div class="head"><span>Una neurona · 2 entradas + sesgo</span><span id="netState">listo</span></div>
+        <svg class="net" id="neuron" viewBox="0 0 460 300" aria-label="Perceptrón simple animado"></svg>
+        <div class="controls">
+          <button class="btn fwd" id="btnFwd">▶ Ver cómo responde</button>
+          <button class="btn alt" id="btnReset">Reiniciar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- en palabras simples -->
+    <div class="simple">
+      <div class="scard fwd reveal">
+        <div class="tag">① La cuenta · cómo responde</div>
+        <h4>Suma con pesos, después decide</h4>
+        <p>Pensá en una balanza. Cada dato que entra (x₁, x₂…) empuja para un lado con más o menos fuerza según su <span class="hl">peso</span> (w). El perceptrón suma todos esos empujones: si el total se va para un lado dice <b>+1</b>, si se va para el otro dice <b>−1</b>.</p>
+        <p>Esa suma se llama <span class="hl">excitación (h)</span> y la “decisión” final la toma la <span class="hl">función de activación</span>. Hay un peso extra, el <b>sesgo (w₀)</b>, que corre la raya de lugar (como el “punto de equilibrio” de la balanza).</p>
+      </div>
+      <div class="scard bwd reveal d1">
+        <div class="tag">② El aprendizaje · cómo se corrige</div>
+        <h4>Mira el error y ajusta los pesos</h4>
+        <p>Le mostramos un ejemplo y comparamos su respuesta con la correcta. Si se equivocó, calculamos <span class="hl">cuánto y para qué lado</span> (eso es <code>y − O</code>) y movemos los pesos un poquito en la dirección que arregla ese error.</p>
+        <p>El tamaño de ese “poquito” lo decide la <span class="hl">tasa de aprendizaje (η)</span>. Repetimos miles de veces, eligiendo ejemplos al azar, y nos quedamos con los pesos que dieron el <b>menor error</b>. <span class="hl">Eso es entrenar.</span></p>
+      </div>
+    </div>
+
+    <!-- flow strip -->
+    <div class="minihead reveal" style="margin-top:46px">El recorrido de un dato, de la entrada a la respuesta</div>
+    <div class="flow reveal d2">
+      <div class="step b1"><div class="lab">entradas</div><div class="val">x<sub>k</sub></div></div>
+      <div class="arrow">→</div>
+      <div class="step b1"><div class="lab">por sus pesos</div><div class="val">w<sub>k</sub></div></div>
+      <div class="arrow">→</div>
+      <div class="step b2"><div class="lab">excitación (suma)</div><div class="val">h</div></div>
+      <div class="arrow">→</div>
+      <div class="step b1"><div class="lab">activación</div><div class="val">g(h)</div></div>
+      <div class="arrow">→</div>
+      <div class="step b2"><div class="lab">salida</div><div class="val">O</div></div>
+    </div>
+
+    <!-- símbolos -->
+    <div class="minihead reveal">Cómo leer las fórmulas — qué es cada símbolo</div>
+    <div class="symbols reveal d1">
+      <div class="sym"><b>x</b><span>cada entrada (un dato)</span></div>
+      <div class="sym"><b>w</b><span>los pesos (importancia)</span></div>
+      <div class="sym"><b>w₀</b><span>el sesgo: corre la raya</span></div>
+      <div class="sym"><b>h</b><span>la suma ponderada (excitación)</span></div>
+      <div class="sym"><b>g</b><span>función de activación</span></div>
+      <div class="sym"><b>O</b><span>la salida (la respuesta)</span></div>
+      <div class="sym"><b>y</b><span>la respuesta correcta (deseada)</span></div>
+      <div class="sym"><b>η</b><span>tasa de aprendizaje (el paso)</span></div>
+      <div class="sym"><b>β</b><span>forma de la activación no lineal</span></div>
+    </div>
+
+    <!-- formula cards -->
+    <div class="minihead reveal" style="margin-top:34px">Las mismas ideas, ahora en fórmulas</div>
+    <div class="fcards">
+      <div class="fcard reveal">
+        <h4><span class="num">1</span> Excitación</h4>
+        <div class="formula">h = w<sub>0</sub> + Σ<sub>k</sub> w<sub>k</sub> · x<sub>k</sub></div>
+        <p>Multiplica cada entrada por su peso y las suma. Es la “cuenta base” de la neurona.</p>
+      </div>
+      <div class="fcard reveal d1">
+        <h4><span class="num">2</span> Activación</h4>
+        <div class="formula">O = g(h)</div>
+        <p>Convierte ese número en la respuesta. Escalón → <code>signo(h)</code> = ±1. Lineal → <code>h</code>. No lineal → tanh o logística.</p>
+      </div>
+      <div class="fcard up reveal d2">
+        <h4><span class="num">3</span> Regla de aprendizaje</h4>
+        <div class="formula">Δw = η · (y − O) · x</div>
+        <p>Corrige cada peso según el error <code>(y − O)</code>. En la versión no lineal se multiplica también por <code>g′(h)</code>.</p>
+      </div>
+      <div class="fcard up reveal d2">
+        <h4><span class="num">4</span> Error</h4>
+        <div class="formula">E = ½ Σ<sub>μ</sub> (y<sub>μ</sub> − O<sub>μ</sub>)²</div>
+        <p>Suma de cuánto se equivocó en cada ejemplo. Cuanto más chico, mejor aprendió. Guardamos los pesos de menor error.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ ALGORITMO ============ -->
+<section id="algoritmo" style="background:var(--paper-2)">
+  <span class="secnum">02</span>
+  <div class="wrap">
+    <div class="eyebrow reveal">El algoritmo · aprendizaje incremental</div>
+    <h2 class="reveal d1" style="font-size:clamp(2rem,5vw,3.2rem);max-width:18ch">Los pasos que implementamos en <code style="font-family:var(--font-mono);font-size:.6em;color:var(--blue)">perceptron_simple()</code></h2>
+    <div class="algo" style="margin-top:40px">
+      <div class="astep reveal"><h4>Inicializar pesos</h4><p>Arrancamos con todos los pesos en cero (<code>w = 0</code>), incluido el sesgo <code>w₀</code>.</p></div>
+      <div class="astep reveal d1"><h4>Tomar un ejemplo</h4><p>Se elige un patrón <code>x</code> al azar entre todos los del conjunto de entrenamiento.</p></div>
+      <div class="astep reveal d2"><h4>Calcular la excitación</h4><p><code>h = x · w</code>: la suma ponderada de las entradas por sus pesos.</p></div>
+      <div class="astep reveal"><h4>Calcular la salida</h4><p><code>O = g(h)</code>: se aplica la activación (escalón, lineal o no lineal).</p></div>
+      <div class="astep reveal d1"><h4>Corregir los pesos</h4><p><code>w += η·(y − O)·x</code>: se mueven los pesos hacia la respuesta correcta.</p></div>
+      <div class="astep reveal d2"><h4>Medir el error</h4><p>Se calcula el error sobre todos los patrones. Si mejora, guardamos ese <code>w</code> como el mejor.</p></div>
+      <div class="astep reveal"><h4>Repetir</h4><p>Mientras el error &gt; 0 y no se agote la <code>COTA</code> de iteraciones, volvemos al paso 2.</p></div>
+    </div>
+    <p class="reveal d1" style="margin-top:30px;color:var(--ink-soft);max-width:64ch">
+      <b>Detalle clave:</b> el perceptrón <em>no</em> recorre los ejemplos en orden ni todos juntos. En cada iteración agarra <b>uno al azar</b> y se corrige solo con ese. Como puede pasarse, guardamos siempre la mejor versión de los pesos (la de menor error), no la última.
+    </p>
+  </div>
+</section>
+
+<!-- ============ EJERCICIO 1 — Y / XOR ============ -->
+<section id="ej1">
+  <span class="secnum">03</span>
+  <div class="wrap">
+    <div class="ex-head reveal">
+      <div style="display:flex;align-items:flex-end;gap:20px">
+        <div class="ex-num" style="color:var(--teal)">1</div>
+        <div>
+          <span class="ex-pill" style="background:var(--teal)">Funciones lógicas · escalón</span>
+          <h2 class="ex-title" style="margin-top:10px">Una raya alcanza para la “Y”, pero no para el XOR</h2>
+        </div>
+      </div>
+    </div>
+
+    <p class="reveal d1" style="max-width:64ch;color:var(--ink-soft);margin-bottom:30px">
+      Le pedimos al perceptrón con activación <b>escalón</b> que aprenda dos funciones lógicas con las mismas 4 entradas <code>{±1, ±1}</code>. La diferencia está en la <b>forma</b> de cada problema: una se puede separar con una sola recta y la otra no. Tocá el botón y mirá qué pasa.
+    </p>
+
+    <!-- plano interactivo -->
+    <div class="grid-2" style="align-items:stretch">
+      <div class="plane-card reveal d1">
+        <div class="head"><span id="planeTitle">Función “Y” (AND)</span><span id="planeTag" style="color:var(--teal)">separable ✓</span></div>
+        <div class="plane-wrap">
+          <svg class="plane" id="plane" viewBox="0 0 300 300" width="100%" style="max-width:340px"></svg>
+        </div>
+        <div class="plane-msg" id="planeMsg" style="color:var(--teal)">Una sola recta deja el (1,1) de un lado y el resto del otro.</div>
+        <div class="legend">
+          <span><i style="background:var(--blue)"></i> salida +1</span>
+          <span><i style="background:var(--red)"></i> salida −1</span>
+          <span><i style="background:var(--teal)"></i> recta de decisión</span>
+        </div>
+        <div class="controls" style="justify-content:center">
+          <button class="btn" id="btnAndXor">↔ Cambiar a XOR</button>
+        </div>
+      </div>
+
+      <div class="panel reveal d2">
+        <h3>Qué se pide <span class="tg">consigna</span></h3>
+        <p style="color:var(--ink-soft)">Implementar el perceptrón simple con función escalón y usarlo para aprender la función lógica <b>“Y”</b> y la función <b>“O exclusivo” (XOR)</b>. Después responder: ¿qué tipo de problemas puede resolver?</p>
+        <h3 style="margin-top:22px">Las dos funciones <span class="tg">datos</span></h3>
+        <ul>
+          <li><b>“Y” (AND):</b> da <code>+1</code> sólo cuando las dos entradas son <code>1</code>. El resto, <code>−1</code>. → <code>{−1,−1,−1,1}</code></li>
+          <li><b>XOR:</b> da <code>+1</code> cuando las entradas son <b>distintas</b>, <code>−1</code> cuando son iguales. → <code>{1,1,−1,−1}</code></li>
+        </ul>
+        <div class="spec" style="margin-top:14px">
+          <div><span>entradas x</span><b>{±1, ±1}</b></div>
+          <div><span>activación</span><b>escalón</b></div>
+          <div><span>η · COTA</span><b>0.1 · 2000</b></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="exgrid" style="margin-top:36px">
+      <div class="reveal d1">
+        <div class="code">
+          <div class="bar"><i style="background:#ff5f56"></i><i style="background:#ffbd2e"></i><i style="background:#27c93f"></i><span class="t">tp_1/part_1.py · Y / XOR</span></div>
+          <pre><code><span class="ln"><span class="tok-c"># última columna = salida esperada (±1)</span></span>
+<span class="ln">data_y   = [[<span class="tok-n">-1</span>,<span class="tok-n">1</span>,<span class="tok-n">-1</span>],[<span class="tok-n">1</span>,<span class="tok-n">-1</span>,<span class="tok-n">-1</span>],[<span class="tok-n">-1</span>,<span class="tok-n">-1</span>,<span class="tok-n">-1</span>],[<span class="tok-n">1</span>,<span class="tok-n">1</span>,<span class="tok-n">1</span>]]</span>
+<span class="ln">data_xor = [[<span class="tok-n">-1</span>,<span class="tok-n">1</span>,<span class="tok-n">1</span>],[<span class="tok-n">1</span>,<span class="tok-n">-1</span>,<span class="tok-n">1</span>],[<span class="tok-n">-1</span>,<span class="tok-n">-1</span>,<span class="tok-n">-1</span>],[<span class="tok-n">1</span>,<span class="tok-n">1</span>,<span class="tok-n">-1</span>]]</span>
+<span class="ln"></span>
+<span class="ln"><span class="tok-k">for</span> data <span class="tok-k">in</span> [data_y, data_xor]:</span>
+<span class="ln">    <span class="tok-c"># escalón: b=None, tanh=False  -&gt;  O = signo(h)</span></span>
+<span class="ln">    w, error, it = <span class="tok-f">perceptron_simple</span>(data, n=<span class="tok-n">0.1</span>, COTA=<span class="tok-n">2000</span>, b=<span class="tok-k">None</span>)</span>
+<span class="ln">    <span class="tok-f">plot_perceptron</span>(w, data, error, it)  <span class="tok-c"># dibuja la recta</span></span></code></pre>
+        </div>
+        <div class="codenote"><span class="b">i</span><span>Con <b>b=None</b> y <b>tanh=False</b> la activación es la <code style="font-family:var(--font-mono)">función escalón</code>: si <code>h&gt;0</code> devuelve <b>+1</b>, si <code>h&lt;0</code> devuelve <b>−1</b>. Es la neurona que sólo sabe trazar <em>una</em> recta.</span></div>
+      </div>
+
+      <div class="panel reveal d2">
+        <h3>Qué pasó <span class="tg">resultados</span></h3>
+        <ul>
+          <li><b>Función “Y”:</b> el perceptrón la aprende <b>perfecto</b> en muy pocas iteraciones. Error <code>0</code>, acierta las 4. Existe una recta que la separa, y la encuentra.</li>
+          <li><b>XOR:</b> <b>nunca</b> lo logra. Agota las 2000 iteraciones, el error se clava y siempre queda al menos <b>1 mal</b> (3 de 4). No hay ninguna recta que separe los puntos.</li>
+        </ul>
+        <div class="result" style="margin-top:18px">
+          <div class="metric"><div class="v" style="color:var(--teal)" data-count="4">4</div><div class="l">“Y”: aciertos de 4 (100%)</div></div>
+          <div class="metric"><div class="v" data-count="0" data-dec="0">0</div><div class="l">“Y”: error final</div></div>
+          <div class="metric"><div class="v" style="color:var(--red)" data-count="3">3</div><div class="l">XOR: aciertos de 4 (75%)</div></div>
+          <div class="metric"><div class="v" data-count="2" data-dec="0">2</div><div class="l">XOR: error (se clava)</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel reveal" style="margin-top:30px;border-top:4px solid var(--teal)">
+      <h3>La respuesta a la pregunta del TP <span class="tg">¿qué puede resolver?</span></h3>
+      <p style="color:var(--ink-soft);max-width:74ch">El perceptrón simple con escalón sólo puede resolver problemas <b>linealmente separables</b>: aquellos donde se puede trazar <b>una sola recta</b> (un plano, en general) que deje cada clase de un lado. La función “Y” lo es; el XOR <b>no</b>.</p>
+      <p style="color:var(--ink-soft);margin:0;max-width:74ch">Por eso falla con el XOR: por más que ajuste los pesos, una recta nunca va a separar bien esos 4 puntos. <span class="hl">Esta limitación es justo lo que motiva el TP2: agregar una capa oculta (perceptrón multicapa) para resolver problemas que una sola recta no puede.</span></p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ EJERCICIO 2 — LINEAL Y NO LINEAL ============ -->
+<section id="ej2" style="background:var(--paper-2)">
+  <span class="secnum">04</span>
+  <div class="wrap">
+    <div class="ex-head reveal">
+      <div style="display:flex;align-items:flex-end;gap:20px">
+        <div class="ex-num" style="color:var(--violet)">2</div>
+        <div>
+          <span class="ex-pill" style="background:var(--violet)">Lineal vs. no lineal</span>
+          <h2 class="ex-title" style="margin-top:10px">Misma neurona, distinta función de activación</h2>
+        </div>
+      </div>
+    </div>
+
+    <p class="reveal d1" style="max-width:64ch;color:var(--ink-soft);margin-bottom:30px">
+      Ahora dejamos las funciones lógicas y vamos a datos de verdad: <b>200 muestras</b>, cada una con <b>3 entradas</b> y una <b>salida continua</b>. La consigna pide aprenderlas con el perceptrón <b>lineal</b> y con el <b>no lineal</b>, y comparar. El truco está en la <b>función de activación</b>: cambiarla cambia por completo lo que la neurona puede aprender.
+    </p>
+
+    <!-- gráfico de activaciones interactivo -->
+    <div class="act-card reveal d1" style="margin-bottom:30px">
+      <div class="head" style="display:flex;justify-content:space-between;align-items:center;font-family:var(--font-mono);font-size:.74rem;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:6px">
+        <span>Las funciones de activación, en vivo</span><span>O = g(h)</span>
+      </div>
+      <svg class="actplot" id="actplot" viewBox="0 0 460 280" width="100%" style="max-width:560px;display:block;margin:0 auto"></svg>
+      <div class="act-toolbar">
+        <div class="toggles">
+          <button class="tgl" data-fn="escalon" style="color:var(--ink)"><i style="background:var(--ink)"></i>escalón</button>
+          <button class="tgl" data-fn="lineal" style="color:var(--amber)"><i style="background:var(--amber)"></i>lineal</button>
+          <button class="tgl" data-fn="tanh" style="color:var(--violet)"><i style="background:var(--violet)"></i>tanh</button>
+          <button class="tgl" data-fn="logis" style="color:var(--teal)"><i style="background:var(--teal)"></i>logística</button>
+        </div>
+        <div class="beta-control">
+          <span style="font-family:var(--font-mono);font-size:.74rem;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.08em">β</span>
+          <input type="range" id="betaSlider" min="0.2" max="3" value="0.5" step="0.1" />
+          <span class="beta-val" id="betaVal">0.5</span>
+        </div>
+      </div>
+      <p style="font-family:var(--font-mono);font-size:.74rem;color:var(--ink-faint);margin:14px 0 0">Prendé/apagá cada curva y movés β para ver cómo cambia la forma. <b>Escalón</b> decide de golpe; <b>lineal</b> es una recta sin límite; <b>tanh</b> y <b>logística</b> son curvas suaves que “aplastan” la salida a un rango (−1..1 y 0..1). β regula qué tan brusca es la “S”.</p>
+    </div>
+
+    <div class="exgrid">
+      <div class="panel reveal d1">
+        <h3>Qué se pide <span class="tg">consigna</span></h3>
+        <ul>
+          <li>Aprender el problema de los archivos <code>TP1-ej2-Conjunto-entrenamiento.txt</code> y <code>TP1-ej2-Salida-deseada.txt</code> con el perceptrón <b>lineal</b> y el <b>no lineal</b>.</li>
+          <li>Evaluar la <b>capacidad de generalización</b> del no lineal: entrenar con un subconjunto y <b>testear con otro</b> que no vio.</li>
+          <li>¿Cómo elegir el mejor conjunto de entrenamiento? ¿Cómo medir su <b>máxima</b> capacidad de generalización?</li>
+        </ul>
+        <h3 style="margin-top:22px">Decisiones <span class="tg">cómo</span></h3>
+        <ul>
+          <li><b>3 activaciones:</b> lineal (<code>O=h</code>), tanh (<code>tanh βh</code>) y logística.</li>
+          <li><b>Escalamos</b> la salida deseada al rango de cada activación (−1..1 ó 0..1), porque vienen en escala 0–99.</li>
+          <li><b>Split 80/20:</b> 160 muestras para entrenar, 40 para testear (mezcladas al azar).</li>
+          <li>Medimos con <b>matriz de confusión</b> y <b>accuracy</b> sobre el test.</li>
+        </ul>
+      </div>
+
+      <div class="reveal d2">
+        <div class="code">
+          <div class="bar"><i style="background:#ff5f56"></i><i style="background:#ffbd2e"></i><i style="background:#27c93f"></i><span class="t">tp_1/part_1.py · ej2</span></div>
+          <pre><code><span class="ln"><span class="tok-c"># 200 muestras, 3 entradas -&gt; 1 salida continua</span></span>
+<span class="ln">config = {</span>
+<span class="ln">  <span class="tok-s">"lineal"</span>: {COTA:<span class="tok-n">5000</span>, n:<span class="tok-n">0.1</span>, act:<span class="tok-s">"lineal"</span>},        <span class="tok-c"># O = h</span></span>
+<span class="ln">  <span class="tok-s">"tanh"</span>:   {COTA:<span class="tok-n">1000</span>, n:<span class="tok-n">0.1</span>, b:<span class="tok-n">0.5</span>, tanh_mode:<span class="tok-k">True</span>}, <span class="tok-c"># O = tanh(βh)</span></span>
+<span class="ln">  <span class="tok-s">"logis"</span>:  {COTA:<span class="tok-n">1000</span>, n:<span class="tok-n">0.1</span>, b:<span class="tok-n">0.5</span>},               <span class="tok-c"># O = 1/(1+e^-2βh)</span></span>
+<span class="ln">}</span>
+<span class="ln"><span class="tok-c"># reescalamos la salida al rango de la activación</span></span>
+<span class="ln">scaled = (y - min)/(max - min) * (rmax - rmin) + rmin</span>
+<span class="ln"><span class="tok-c"># 20% test, 80% entrena (mezclado)</span></span>
+<span class="ln">test, train = <span class="tok-f">split_test_data</span>(data, shuffle_data=<span class="tok-k">True</span>)</span>
+<span class="ln">w, error, it = <span class="tok-f">perceptron_simple</span>(train, n, COTA, b, tanh_mode, act)</span></code></pre>
+        </div>
+        <div class="codenote"><span class="b">i</span><span>El <b>escalado</b> es necesario: tanh sólo da valores entre −1 y 1, así que no puede “alcanzar” una salida de 87. Llevamos la salida deseada al mismo rango antes de entrenar.</span></div>
+      </div>
+    </div>
+
+    <div class="result reveal" style="margin-top:36px">
+      <div class="metric"><div class="v" style="color:var(--amber)" data-count="50" data-suffix="%">50%</div><div class="l">lineal · accuracy (≈ moneda al aire)</div></div>
+      <div class="metric"><div class="v" style="color:var(--violet)" data-count="70" data-suffix="%">70%</div><div class="l">tanh · accuracy en test</div></div>
+      <div class="metric"><div class="v" style="color:var(--teal)" data-count="65" data-suffix="%">65%</div><div class="l">logística · accuracy en test</div></div>
+      <div class="metric"><div class="v">160 / 40</div><div class="l">entrenar / testear</div></div>
+    </div>
+    <p class="reveal" style="margin-top:10px;font-family:var(--font-mono);font-size:.72rem;color:var(--ink-faint)">* El código no fija semilla, así que los números bailan un poco entre corridas. Estos son valores representativos.</p>
+
+    <div class="panel reveal" style="margin-top:30px;border-top:4px solid var(--violet)">
+      <h3>Lineal vs. no lineal <span class="tg">qué aprendimos</span></h3>
+      <p style="color:var(--ink-soft);max-width:74ch">El perceptrón <b>lineal</b> sólo puede representar una relación recta entre las entradas y la salida. Como esta función no es así, su error de entrenamiento queda <b>alto</b> y en el test acierta cerca del <b>50%</b> (como tirar una moneda). No alcanza para este problema.</p>
+      <p style="color:var(--ink-soft);max-width:74ch">El perceptrón <b>no lineal</b> (tanh / logística) sí puede “curvar” su respuesta: ajusta el conjunto de entrenamiento con error <b>muy bajo</b> (≈0.001) y generaliza mejor a los datos nuevos (≈65–70%). Aún así no es perfecto: una sola neurona tiene límites, y por eso de nuevo aparece la idea de sumar capas (TP2).</p>
+      <p style="color:var(--ink-soft);margin:0;max-width:74ch"><b>Las dos preguntas finales del TP:</b> el <b>mejor conjunto de entrenamiento</b> es el que representa bien todos los casos (mezclar y repartir parejo las clases, no dejar afuera una zona de los datos). Y para medir la <b>máxima capacidad de generalización</b> conviene <b>validación cruzada</b>: ir rotando qué parte queda para test y promediar, así el resultado no depende de un único reparto con suerte. <span class="hl">En el extremo, dejar 1 solo dato afuera cada vez (leave-one-out).</span></p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ AYUDA MEMORIA ============ -->
+<section id="ayuda">
+  <span class="secnum">05</span>
+  <div class="wrap">
+    <div class="eyebrow reveal">Ayuda memoria · para no quedarte trabado</div>
+    <h2 class="reveal d1" style="font-size:clamp(2rem,5vw,3.2rem);max-width:20ch">Lo que hay que tener claro (en palabras fáciles)</h2>
+    <p class="reveal d2" style="max-width:60ch;color:var(--ink-soft);margin-top:18px">Si te perdés con alguna palabra, acá está cada una explicada como si se la contaras a un amigo que nunca escuchó del tema.</p>
+
+    <div class="minihead reveal" style="margin-top:40px">Cada palabra, en una frase</div>
+    <div class="glossary">
+      <div class="gterm reveal"><b>Perceptrón simple</b><p>La red más chica: una sola neurona. Suma sus entradas con pesos y decide una salida.</p></div>
+      <div class="gterm reveal d1"><b>Peso (w)</b><p>Qué tanta importancia le da la neurona a cada entrada. Aprender = ir ajustando estos pesos.</p></div>
+      <div class="gterm reveal d2"><b>Sesgo (w₀)</b><p>Un peso extra que no depende de las entradas. Sirve para correr la recta de decisión de lugar.</p></div>
+      <div class="gterm reveal"><b>Excitación (h)</b><p>La suma ponderada: cada entrada por su peso, todo sumado. El número antes de decidir.</p></div>
+      <div class="gterm reveal d1"><b>Función de activación (g)</b><p>La que convierte h en la respuesta. Escalón, lineal, tanh o logística.</p></div>
+      <div class="gterm reveal d2"><b>Escalón</b><p>La más simple: si h&gt;0 dice +1, si h&lt;0 dice −1. Decide de golpe, sin grises.</p></div>
+      <div class="gterm reveal"><b>Salida (O)</b><p>La respuesta que da la neurona después de aplicar la activación.</p></div>
+      <div class="gterm reveal d1"><b>η (eta) · tasa de aprendizaje</b><p>El tamaño del paso al corregir. Grande = avanza rápido pero se pasa; chico = seguro pero lento.</p></div>
+      <div class="gterm reveal d2"><b>β (beta)</b><p>Regula la forma de la activación no lineal: qué tan brusca es la curva en “S”.</p></div>
+      <div class="gterm reveal"><b>Linealmente separable</b><p>Que se puede partir las clases con una sola recta (o plano). La “Y” lo es; el XOR no.</p></div>
+      <div class="gterm reveal d1"><b>Recta / hiperplano de decisión</b><p>La línea que traza el perceptrón para separar una clase de la otra.</p></div>
+      <div class="gterm reveal d2"><b>Error</b><p>Qué tan lejos quedó la respuesta de la correcta. Cuanto más chico, mejor aprendió.</p></div>
+      <div class="gterm reveal"><b>COTA</b><p>El tope de iteraciones. Si no aprende antes, igual frena ahí para no quedarse para siempre.</p></div>
+      <div class="gterm reveal d1"><b>Generalizar</b><p>Acertar con datos NUEVOS que nunca vio, no sólo con los que estudió.</p></div>
+      <div class="gterm reveal d2"><b>Validación cruzada</b><p>Rotar qué parte de los datos se usa para test y promediar, para una medida más justa.</p></div>
+    </div>
+
+    <div class="minihead reveal" style="margin-top:50px">Si el profe te pregunta…</div>
+    <div class="simple" style="grid-template-columns:1fr 1fr">
+      <div class="scard reveal" style="border-top:4px solid var(--teal)">
+        <h4>¿Qué problemas puede resolver el perceptrón simple escalón?</h4>
+        <p style="color:var(--ink-soft)">Sólo los <b>linealmente separables</b>: los que se pueden partir con una sola recta. Por eso aprende la “Y” pero <b>no</b> el XOR. Es la respuesta directa a la pregunta del Ejercicio 1.</p>
+      </div>
+      <div class="scard reveal d1" style="border-top:4px solid var(--red)">
+        <h4>¿Por qué no puede con el XOR?</h4>
+        <p style="color:var(--ink-soft)">Porque los puntos del XOR están “cruzados” (en diagonal): no existe ninguna recta que deje los +1 de un lado y los −1 del otro. El perceptrón sólo sabe trazar una recta, así que siempre le queda al menos uno mal.</p>
+      </div>
+      <div class="scard reveal" style="border-top:4px solid var(--blue)">
+        <h4>¿Cómo aprende? ¿Qué es la regla Δw = η(y−O)x?</h4>
+        <p style="color:var(--ink-soft)">Compara su respuesta con la correcta. Si falló, <code>(y−O)</code> dice cuánto y para qué lado; multiplicado por la entrada y por η, eso le dice cuánto mover cada peso. Repitiéndolo muchas veces, el error baja.</p>
+      </div>
+      <div class="scard reveal d1" style="border-top:4px solid var(--amber)">
+        <h4>¿Qué diferencia hay entre lineal y no lineal?</h4>
+        <p style="color:var(--ink-soft)">El <b>lineal</b> sólo puede representar relaciones rectas (<code>O=h</code>): para datos curvos falla (~50%). El <b>no lineal</b> (tanh/logística) “curva” su respuesta y ajusta mucho mejor (~65–70%).</p>
+      </div>
+      <div class="scard reveal" style="border-top:4px solid var(--violet)">
+        <h4>¿Para qué sirve escalar la salida?</h4>
+        <p style="color:var(--ink-soft)">Porque tanh sólo da valores entre −1 y 1 (y la logística entre 0 y 1). Si la salida deseada va de 0 a 99, hay que llevarla al mismo rango, sino la neurona nunca podría “alcanzarla”.</p>
+      </div>
+      <div class="scard reveal d1" style="border-top:4px solid var(--teal)">
+        <h4>¿Cómo elegir el mejor conjunto de entrenamiento y medir la generalización?</h4>
+        <p style="color:var(--ink-soft)">El mejor conjunto es el que <b>representa bien</b> todos los casos (mezclar y repartir parejo). Para medir la <b>máxima</b> generalización: <b>validación cruzada</b> (rotar el test y promediar), en el extremo dejando 1 dato afuera cada vez.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CONCLUSIONES ============ -->
+<section id="conclusiones" style="background:var(--paper-2)">
+  <span class="secnum">06</span>
+  <div class="wrap">
+    <div class="eyebrow reveal">Conclusiones</div>
+    <h2 class="reveal d1" style="font-size:clamp(2rem,5vw,3.2rem);max-width:16ch;margin-bottom:40px">Lo que aprendimos del trabajo</h2>
+    <div class="concl">
+      <div class="ccard reveal" style="border-top-color:var(--teal)"><div class="ic">／</div><h4>Una sola recta</h4><p>El perceptrón simple traza un único hiperplano. Resuelve lo linealmente separable (la “Y”) y nada más.</p></div>
+      <div class="ccard reveal d1" style="border-top-color:var(--red)"><div class="ic">✕</div><h4>El XOR lo deja afuera</h4><p>No hay recta que separe el XOR: el perceptrón nunca converge. Esa limitación es la que motiva el perceptrón multicapa (TP2).</p></div>
+      <div class="ccard reveal d2" style="border-top-color:var(--amber)"><div class="ic">g</div><h4>La activación define todo</h4><p>Lineal queda en ~50% con datos curvos; tanh/logística los ajustan mucho mejor. Cambiar g cambia lo que la neurona puede aprender.</p></div>
+      <div class="ccard reveal d3" style="border-top-color:var(--violet)"><div class="ic">≈</div><h4>Entrenar y generalizar</h4><p>Separamos train/test para ver si generaliza. Para una medida justa conviene validación cruzada y un conjunto de entrenamiento bien representativo.</p></div>
+    </div>
+
+    <div class="eyebrow reveal" style="margin-top:70px">Mini glosario</div>
+    <div class="glossary">
+      <div class="gterm reveal"><b>Peso (w)</b><p>Importancia que la neurona le da a cada entrada.</p></div>
+      <div class="gterm reveal d1"><b>Excitación (h)</b><p>Suma ponderada antes de la activación.</p></div>
+      <div class="gterm reveal d2"><b>Activación (g)</b><p>Convierte h en la salida: escalón, lineal, tanh o logística.</p></div>
+      <div class="gterm reveal"><b>Linealmente separable</b><p>Que una sola recta alcanza para separar las clases.</p></div>
+      <div class="gterm reveal d1"><b>η (eta)</b><p>Tasa de aprendizaje: tamaño del paso al corregir.</p></div>
+      <div class="gterm reveal d2"><b>Generalizar</b><p>Acertar con datos nuevos, no sólo con los de entrenamiento.</p></div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="big">¡Gracias!</div>
+  Perceptrón Simple · TP1 · Fundamentos de Redes Neuronales · UNAHUR <br>
+  <span style="opacity:.7">Implementación en Python · <code>tp_1/part_1.py</code> + <code>addons/functions.py</code></span>
+</footer>
+
+<script>
+/* ================= reveal on scroll ================= */
+const io = new IntersectionObserver((entries)=>{
+  entries.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target);} });
+},{threshold:.12});
+document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+
+/* nav hide on scroll down */
+let lastY=0;const nav=document.getElementById('nav');
+addEventListener('scroll',()=>{const y=scrollY;nav.style.transform=(y>lastY&&y>140)?'translateY(-110%)':'none';lastY=y;});
+
+/* ================= progreso + scrollspy + recordatorio + parallax ================= */
+const prog=document.getElementById('progress');
+const secnums=[...document.querySelectorAll('.secnum')];
+addEventListener('scroll',()=>{
+  const h=document.documentElement;
+  const sc=h.scrollTop/((h.scrollHeight-h.clientHeight)||1);
+  if(prog)prog.style.width=(Math.min(sc,1)*100)+'%';
+  secnums.forEach(s=>{const r=s.getBoundingClientRect();s.style.transform=`translateY(${(r.top-innerHeight/2)*-0.05}px)`;});
+},{passive:true});
+
+const cues={
+  hero:['Inicio','TP1: el perceptrón simple, una sola neurona. Qué puede y qué no puede aprender.'],
+  metodo:['El método','Suma con pesos (h), aplica una activación (g) y da una salida (O). Aprende ajustando los pesos.'],
+  algoritmo:['Algoritmo','Iniciar pesos en 0 → tomar un ejemplo al azar → h → O → corregir Δw=η(y−O)x → repetir.'],
+  ej1:['Ej 1 · Y / XOR','La “Y” es separable → 100%. El XOR no → nunca converge. Sólo resuelve lo linealmente separable.'],
+  ej2:['Ej 2 · Lineal/No lineal','Lineal ~50% (datos curvos); tanh/logística ~65–70%. La activación define lo que puede aprender.'],
+  ayuda:['Ayuda memoria','Acá tenés cada término fácil y las preguntas típicas del profe.'],
+  conclusiones:['Conclusiones','Una recta sola: resuelve la “Y”, no el XOR. La activación importa. Eso motiva el TP2.']
+};
+const recEl=document.getElementById('recordatorio');
+const recTitle=recEl.querySelector('.rtitle');
+const recBody=recEl.querySelector('.rbody');
+const navLinks=[...document.querySelectorAll('nav ul a')];
+const spy=new IntersectionObserver((es)=>{es.forEach(e=>{if(e.isIntersecting){
+  const id=e.target.id;
+  navLinks.forEach(a=>a.classList.toggle('active',a.getAttribute('href')==='#'+id));
+  if(cues[id]){recTitle.textContent=cues[id][0];recBody.textContent=cues[id][1];}
+}});},{rootMargin:'-45% 0px -45% 0px'});
+document.querySelectorAll('section').forEach(s=>spy.observe(s));
+
+const recToggle=document.getElementById('recToggle');
+let recManual=false,recAuto=false;
+function showRec(v){recEl.classList.toggle('show',v);recToggle.style.display=v?'none':'flex';}
+document.getElementById('recClose').addEventListener('click',()=>{recManual=true;showRec(false);});
+recToggle.addEventListener('click',()=>{recManual=false;showRec(true);});
+addEventListener('scroll',()=>{if(!recAuto&&!recManual&&scrollY>320){recAuto=true;showRec(true);}},{passive:true});
+
+/* ================= números que cuentan solos ================= */
+function countUp(el){
+  const target=+el.dataset.count,dec=+(el.dataset.dec||0),suf=el.dataset.suffix||'';
+  const dur=1000,t0=performance.now();
+  function tick(now){const p=Math.min((now-t0)/dur,1),e=1-Math.pow(1-p,3);
+    el.textContent=(target*e).toFixed(dec)+suf;
+    if(p<1)requestAnimationFrame(tick);else el.textContent=target.toFixed(dec)+suf;}
+  requestAnimationFrame(tick);
+}
+const countObs=new IntersectionObserver((es)=>{es.forEach(e=>{if(e.isIntersecting){countUp(e.target);countObs.unobserve(e.target);}});},{threshold:.6});
+document.querySelectorAll('.metric .v[data-count]').forEach(el=>countObs.observe(el));
+
+/* ================= neurona única animada (método) ================= */
+const NS='http://www.w3.org/2000/svg';
+const nsvg=document.getElementById('neuron');
+(function buildNeuron(){
+  const inX=70, outX=330, ys=[70,150,230];
+  const labels=['1 (sesgo)','x₁','x₂'];
+  // edges
+  ys.forEach((y,i)=>{
+    const l=document.createElementNS(NS,'line');
+    l.setAttribute('x1',inX);l.setAttribute('y1',y);
+    l.setAttribute('x2',outX);l.setAttribute('y2',150);
+    l.setAttribute('class','edge');l.dataset.i=i;nsvg.appendChild(l);
+    const t=document.createElementNS(NS,'text');
+    t.setAttribute('x',(inX+outX)/2);t.setAttribute('y',(y+150)/2-6);
+    t.setAttribute('fill','#6b7791');t.setAttribute('font-size','11');t.setAttribute('text-anchor','middle');
+    t.textContent='w'+i;nsvg.appendChild(t);
+  });
+  // input nodes
+  ys.forEach((y,i)=>{
+    const c=document.createElementNS(NS,'circle');
+    c.setAttribute('cx',inX);c.setAttribute('cy',y);c.setAttribute('r',16);
+    c.setAttribute('class','node');c.dataset.in=i;nsvg.appendChild(c);
+    const t=document.createElementNS(NS,'text');
+    t.setAttribute('x',inX-26);t.setAttribute('y',y+4);t.setAttribute('fill','#33405a');
+    t.setAttribute('font-size','11');t.setAttribute('text-anchor','end');t.textContent=labels[i];nsvg.appendChild(t);
+  });
+  // output neuron
+  const o=document.createElementNS(NS,'circle');
+  o.setAttribute('cx',outX);o.setAttribute('cy',150);o.setAttribute('r',24);
+  o.setAttribute('class','node');o.id='outNode';nsvg.appendChild(o);
+  const ot=document.createElementNS(NS,'text');
+  ot.setAttribute('x',outX);ot.setAttribute('y',155);ot.setAttribute('fill','#33405a');
+  ot.setAttribute('font-size','13');ot.setAttribute('text-anchor','middle');ot.textContent='Σ→g';ot.id='outTxt';nsvg.appendChild(ot);
+  // O arrow
+  const oa=document.createElementNS(NS,'text');
+  oa.setAttribute('x',outX+50);oa.setAttribute('y',155);oa.setAttribute('fill','#6b7791');
+  oa.setAttribute('font-size','13');oa.setAttribute('text-anchor','middle');oa.textContent='→ O';nsvg.appendChild(oa);
+})();
+const stateEl=document.getElementById('netState');
+let nbusy=false;
+function nsleep(ms){return new Promise(r=>setTimeout(r,ms));}
+async function neuronForward(){
+  if(nbusy)return;nbusy=true;
+  nsvg.querySelectorAll('.edge,.node').forEach(e=>e.classList.remove('lit-fwd'));
+  document.getElementById('outTxt').textContent='Σ→g';
+  stateEl.textContent='entra ▶';stateEl.style.color='var(--blue)';
+  nsvg.querySelectorAll('.node[data-in]').forEach(n=>n.classList.add('lit-fwd'));
+  await nsleep(620);
+  stateEl.textContent='suma h';
+  nsvg.querySelectorAll('.edge').forEach(e=>e.classList.add('lit-fwd'));
+  await nsleep(620);
+  document.getElementById('outNode').classList.add('lit-fwd');
+  document.getElementById('outTxt').textContent='O';
+  document.getElementById('outTxt').setAttribute('fill','#fff');
+  stateEl.textContent='salida O ✓';
+  nbusy=false;
+}
+document.getElementById('btnFwd').addEventListener('click',neuronForward);
+document.getElementById('btnReset').addEventListener('click',()=>{
+  if(nbusy)return;nsvg.querySelectorAll('.edge,.node').forEach(e=>e.classList.remove('lit-fwd'));
+  document.getElementById('outTxt').textContent='Σ→g';document.getElementById('outTxt').setAttribute('fill','#33405a');
+  stateEl.textContent='listo';stateEl.style.color='var(--ink-faint)';
+});
+const methodIO=new IntersectionObserver((es)=>{es.forEach(e=>{if(e.isIntersecting){neuronForward();methodIO.disconnect();}});},{threshold:.4});
+methodIO.observe(nsvg);
+
+/* ================= plano AND / XOR (ej1) ================= */
+const plane=document.getElementById('plane');
+// puntos (x1,x2) -> coords svg. x1:-1->60,+1->240 ; x2:-1->240,+1->60
+function px(x1){return 150 + x1*90;}
+function py(x2){return 150 - x2*90;}
+const PTS=[{x1:-1,x2:1},{x1:1,x2:-1},{x1:-1,x2:-1},{x1:1,x2:1}];
+// AND(Y): +1 solo (1,1). XOR: +1 si distintas.
+const LBL={
+  and:[ -1,-1,-1, 1],     // orden = PTS
+  xor:[  1, 1,-1,-1]
+};
+let mode='and';
+(function buildPlane(){
+  // ejes
+  ['x','y'].forEach(()=>{});
+  const ax=document.createElementNS(NS,'line');
+  ax.setAttribute('x1',30);ax.setAttribute('y1',150);ax.setAttribute('x2',270);ax.setAttribute('y2',150);
+  ax.setAttribute('class','actaxis');ax.setAttribute('opacity','.4');plane.appendChild(ax);
+  const ay=document.createElementNS(NS,'line');
+  ay.setAttribute('x1',150);ay.setAttribute('y1',30);ay.setAttribute('x2',150);ay.setAttribute('y2',270);
+  ay.setAttribute('class','actaxis');ay.setAttribute('opacity','.4');plane.appendChild(ay);
+  // recta de decisión
+  const sep=document.createElementNS(NS,'line');
+  sep.setAttribute('class','sepline');sep.id='sepline';plane.appendChild(sep);
+  // puntos
+  PTS.forEach((p,i)=>{
+    const c=document.createElementNS(NS,'circle');
+    c.setAttribute('cx',px(p.x1));c.setAttribute('cy',py(p.x2));c.setAttribute('r',15);
+    c.setAttribute('class','pt');c.dataset.i=i;c.id='pt'+i;plane.appendChild(c);
+    const t=document.createElementNS(NS,'text');
+    t.setAttribute('x',px(p.x1));t.setAttribute('y',py(p.x2)+30);t.setAttribute('fill','#6b7791');
+    t.setAttribute('font-size','9');t.setAttribute('text-anchor','middle');
+    t.textContent=`(${p.x1},${p.x2})`;plane.appendChild(t);
+  });
+})();
+let xorAnim=null;
+function renderPlane(){
+  const lab=LBL[mode];
+  PTS.forEach((p,i)=>{
+    const c=document.getElementById('pt'+i);
+    c.setAttribute('class','pt '+(lab[i]>0?'pos':'neg'));
+  });
+  const sep=document.getElementById('sepline');
+  const title=document.getElementById('planeTitle');
+  const tag=document.getElementById('planeTag');
+  const msg=document.getElementById('planeMsg');
+  if(xorAnim){cancelAnimationFrame(xorAnim);xorAnim=null;}
+  if(mode==='and'){
+    title.textContent='Función “Y” (AND)';
+    tag.textContent='separable ✓';tag.style.color='var(--teal)';
+    sep.setAttribute('stroke','var(--teal)');sep.style.opacity='1';
+    // recta x1 + x2 = 1  (deja (1,1) de un lado). En svg: dos puntos.
+    sep.setAttribute('x1',px(-0.2));sep.setAttribute('y1',py(1.2));
+    sep.setAttribute('x2',px(1.2));sep.setAttribute('y2',py(-0.2));
+    msg.style.color='var(--teal)';
+    msg.textContent='Una sola recta deja el (1,1) de un lado y el resto del otro. ✓';
+  }else{
+    title.textContent='Función “O exclusivo” (XOR)';
+    tag.textContent='no separable ✗';tag.style.color='var(--red)';
+    sep.setAttribute('stroke','var(--red)');sep.style.opacity='1';
+    msg.style.color='var(--red)';
+    // recta rotando: siempre deja alguno mal
+    let ang=0;
+    function spin(){
+      ang+=0.012;
+      const r=130, cx=150, cy=150;
+      const dx=Math.cos(ang)*r, dy=Math.sin(ang)*r;
+      sep.setAttribute('x1',cx-dx);sep.setAttribute('y1',cy-dy);
+      sep.setAttribute('x2',cx+dx);sep.setAttribute('y2',cy+dy);
+      xorAnim=requestAnimationFrame(spin);
+    }
+    spin();
+    msg.textContent='Probá cualquier recta… siempre queda al menos 1 mal. ✗';
+  }
+}
+renderPlane();
+document.getElementById('btnAndXor').addEventListener('click',function(){
+  mode=(mode==='and')?'xor':'and';
+  this.textContent=(mode==='and')?'↔ Cambiar a XOR':'↔ Cambiar a “Y” (AND)';
+  renderPlane();
+});
+
+/* ================= gráfico de activaciones (ej2) ================= */
+const act=document.getElementById('actplot');
+const AW=460,AH=280,aPad=34;
+const hMin=-3,hMax=3,vMin=-1.25,vMax=1.25;
+function ax2sx(h){return aPad + (h-hMin)/(hMax-hMin)*(AW-2*aPad);}
+function av2sy(v){return AH-aPad - (v-vMin)/(vMax-vMin)*(AH-2*aPad);}
+const actState={escalon:true,lineal:true,tanh:true,logis:true};
+let beta=0.5;
+const COL={escalon:'#101a2e',lineal:'#e0852a',tanh:'#8b2fb0',logis:'#16967a'};
+function actVal(fn,h){
+  if(fn==='escalon')return h>0?1:(h<0?-1:0);
+  if(fn==='lineal')return h;                       // O = h
+  if(fn==='tanh')return Math.tanh(beta*h);          // tanh(βh)
+  if(fn==='logis')return 1/(1+Math.exp(-2*beta*h)); // 0..1
+}
+function buildActStatic(){
+  act.innerHTML='';
+  // grid + ejes
+  for(let v=-1;v<=1;v++){
+    const ln=document.createElementNS(NS,'line');
+    ln.setAttribute('x1',aPad);ln.setAttribute('y1',av2sy(v));ln.setAttribute('x2',AW-aPad);ln.setAttribute('y2',av2sy(v));
+    ln.setAttribute('class',v===0?'actaxis':'actgrid');act.appendChild(ln);
+    const t=document.createElementNS(NS,'text');
+    t.setAttribute('x',aPad-6);t.setAttribute('y',av2sy(v)+4);t.setAttribute('fill','#6b7791');
+    t.setAttribute('font-size','10');t.setAttribute('text-anchor','end');t.textContent=v;act.appendChild(t);
+  }
+  const ay=document.createElementNS(NS,'line');
+  ay.setAttribute('x1',ax2sx(0));ay.setAttribute('y1',aPad-6);ay.setAttribute('x2',ax2sx(0));ay.setAttribute('y2',AH-aPad+6);
+  ay.setAttribute('class','actaxis');act.appendChild(ay);
+  // labels eje
+  const lx=document.createElementNS(NS,'text');
+  lx.setAttribute('x',AW-aPad);lx.setAttribute('y',av2sy(0)-8);lx.setAttribute('fill','#6b7791');
+  lx.setAttribute('font-size','11');lx.setAttribute('text-anchor','end');lx.textContent='h →';act.appendChild(lx);
+  const ly=document.createElementNS(NS,'text');
+  ly.setAttribute('x',ax2sx(0)+8);ly.setAttribute('y',aPad);ly.setAttribute('fill','#6b7791');
+  ly.setAttribute('font-size','11');ly.textContent='O';act.appendChild(ly);
+  // grupo de curvas
+  const g=document.createElementNS(NS,'g');g.id='actCurves';act.appendChild(g);
+}
+function drawCurves(){
+  const g=document.getElementById('actCurves');g.innerHTML='';
+  ['lineal','logis','tanh','escalon'].forEach(fn=>{
+    if(!actState[fn])return;
+    if(fn==='escalon'){
+      // dos segmentos + salto
+      const segs=[[[-3,-1],[0,-1]],[[0,1],[3,1]]];
+      segs.forEach(s=>{
+        const p=document.createElementNS(NS,'path');
+        p.setAttribute('d',`M ${ax2sx(s[0][0])} ${av2sy(s[0][1])} L ${ax2sx(s[1][0])} ${av2sy(s[1][1])}`);
+        p.setAttribute('class','actcurve');p.setAttribute('stroke',COL[fn]);g.appendChild(p);
+      });
+      const jump=document.createElementNS(NS,'path');
+      jump.setAttribute('d',`M ${ax2sx(0)} ${av2sy(-1)} L ${ax2sx(0)} ${av2sy(1)}`);
+      jump.setAttribute('class','actcurve');jump.setAttribute('stroke',COL[fn]);
+      jump.setAttribute('stroke-dasharray','3 4');jump.setAttribute('opacity','.5');g.appendChild(jump);
+      return;
+    }
+    let d='';
+    for(let h=hMin;h<=hMax+0.001;h+=0.06){
+      let v=actVal(fn,h);
+      v=Math.max(vMin,Math.min(vMax,v));
+      d+=(d?' L ':'M ')+ax2sx(h)+' '+av2sy(v);
+    }
+    const p=document.createElementNS(NS,'path');
+    p.setAttribute('d',d);p.setAttribute('class','actcurve');p.setAttribute('stroke',COL[fn]);
+    if(fn==='lineal')p.setAttribute('stroke-dasharray','6 5');
+    g.appendChild(p);
+  });
+}
+buildActStatic();drawCurves();
+document.querySelectorAll('.tgl').forEach(b=>{
+  b.addEventListener('click',()=>{
+    const fn=b.dataset.fn;actState[fn]=!actState[fn];
+    b.classList.toggle('off',!actState[fn]);drawCurves();
+  });
+});
+const betaSlider=document.getElementById('betaSlider');
+const betaVal=document.getElementById('betaVal');
+betaSlider.addEventListener('input',()=>{
+  beta=+betaSlider.value;betaVal.textContent=beta.toFixed(1);drawCurves();
+});
+
+/* ================= hero background network ================= */
+const hn=document.getElementById('heroNet');
+(function heroNet(){
+  const L=[3,1,1];const cols=L.length;const w=1200,h=800;
+  const xs=[260,600,940];
+  const pos=L.map((c,li)=>{const a=[];for(let i=0;i<c;i++){a.push({x:xs[li],y:c===1?h/2:200+i*((h-400)/(c-1))});}return a;});
+  let html='';
+  for(let li=0;li<cols-1;li++)pos[li].forEach(a=>pos[li+1].forEach(b=>{
+    html+=`<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="#2347d9" stroke-width="1.5" opacity="0.14"/>`;}));
+  pos.flat().forEach((p,i)=>{html+=`<circle cx="${p.x}" cy="${p.y}" r="14" fill="#101a2e" opacity="0.16"><animate attributeName="opacity" values="0.1;0.45;0.1" dur="${3+i%3}s" repeatCount="indefinite" begin="${i*0.25}s"/></circle>`;});
+  hn.innerHTML=html;
+})();
+</script>
+</body>
+</html>
