@@ -7,7 +7,7 @@ from tp_3.addons.functions import autoencoder_keras_instance
 
 def tp3_part_3():
     print("\n--- EJECUTANDO PARTE 2: POKÉMON 100x100 ---")
-    RECUPERAR_MODELO = False
+    RECUPERAR_MODELO = True
     # 1. Parámetros de alta resolución
     
     IMG_SIZE = (100, 100)

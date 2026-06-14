@@ -128,7 +128,8 @@ def autoencoder_keras_instance(dim_entrada=35, dim_latente=2, output_activation=
 # =====================================================================
 # PUNTO 3: gráfico en 2D del espacio latente
 # =====================================================================
-def graficar_espacio_latente(encoder, plane_data, etiquetas,
+def graficar_espacio_latente(encoder, plane_data, etiquetas, 
+                             puntos_extra=None, etiquetas_extra=None,
                              path="./Documento/tp3_latente.png"):
     """Pasa cada carácter por el encoder para obtener sus 2 coordenadas
     latentes (z1, z2) y las dibuja en el plano. Cada punto lleva al lado
@@ -138,13 +139,25 @@ def graficar_espacio_latente(encoder, plane_data, etiquetas,
     coords = encoder.predict(plane_data, verbose=0)  # forma (32, 2)
 
     plt.figure(figsize=(9, 8))
-    plt.scatter(coords[:, 0], coords[:, 1], s=12, color="crimson", zorder=3)
+    # Dibujar puntos del dataset original
+    plt.scatter(coords[:, 0], coords[:, 1], s=25, color="crimson", alpha=0.6, label="Dataset", zorder=3)
     for (z1, z2), c in zip(coords, etiquetas):
-        plt.annotate(str(c), (z1, z2), fontsize=13, fontweight="bold",
+        plt.annotate(str(c), (z1, z2), fontsize=10, alpha=0.7,
                      xytext=(4, 4), textcoords="offset points")
-    plt.title("Caracteres en el espacio latente (2D)")
+
+    # Dibujar puntos generados o de interés extra
+    if puntos_extra is not None:
+        puntos_extra = np.array(puntos_extra)
+        plt.scatter(puntos_extra[:, 0], puntos_extra[:, 1], s=100, color="blue", marker="X", label="Puntos de Interés", zorder=5)
+        if etiquetas_extra:
+            for (z1, z2), txt in zip(puntos_extra, etiquetas_extra):
+                plt.annotate(txt, (z1, z2), fontsize=11, fontweight="bold", color="blue",
+                             xytext=(6, 6), textcoords="offset points")
+
+    plt.title("Mapeo de Caracteres en el Espacio Latente (2D)")
     plt.xlabel("z1")
     plt.ylabel("z2")
+    plt.legend()
     plt.grid(True, alpha=0.3)
     plt.savefig(path, dpi=150, bbox_inches="tight")
     plt.close()
