@@ -17,6 +17,7 @@ os.environ["MALLOC_CONF"] = "background_thread:true"
 import keras
 import tensorflow as tf
 import numpy as np
+import matplotlib.pyplot as plt
 from keras import layers, Model
 
 
@@ -113,3 +114,75 @@ def autoencoder_keras_instance():
     autoencoder.summary()
 
     return autoencoder, encoder, decoder
+
+
+# =====================================================================
+# PUNTO 3: gráfico en 2D del espacio latente
+# =====================================================================
+def graficar_espacio_latente(encoder, plane_data, etiquetas,
+                             path="./Documento/tp3_latente.png"):
+    """Pasa cada carácter por el encoder para obtener sus 2 coordenadas
+    latentes (z1, z2) y las dibuja en el plano. Cada punto lleva al lado
+    el carácter al que corresponde, así se ve cómo la red 'ordena' los
+    caracteres parecidos cerca entre sí.
+    """
+    coords = encoder.predict(plane_data, verbose=0)  # forma (32, 2)
+
+    plt.figure(figsize=(9, 8))
+    plt.scatter(coords[:, 0], coords[:, 1], s=12, color="crimson", zorder=3)
+    for (z1, z2), c in zip(coords, etiquetas):
+        plt.annotate(str(c), (z1, z2), fontsize=13, fontweight="bold",
+                     xytext=(4, 4), textcoords="offset points")
+    plt.title("Caracteres en el espacio latente (2D)")
+    plt.xlabel("z1")
+    plt.ylabel("z2")
+    plt.grid(True, alpha=0.3)
+    plt.savefig(path, dpi=150, bbox_inches="tight")
+    plt.close()
+    print(f"[INFO] Gráfico del espacio latente guardado en: {path}")
+    return coords
+
+
+# =====================================================================
+# PUNTO 4: generar un carácter NUEVO (que no está en el entrenamiento)
+# =====================================================================
+def generar_caracter(decoder, punto_latente, path="./Documento/tp3_nuevo.png"):
+    """El decoder toma cualquier punto (z1, z2) del plano y reconstruye un
+    carácter de 35 píxeles. Si el punto NO coincide con el de ningún
+    carácter entrenado, la red está GENERANDO algo nuevo.
+
+    Teoría: el autoencoder aprende un espacio latente continuo. Eso quiere
+    decir que entre dos caracteres conocidos hay infinitos puntos válidos,
+    y cada uno produce una imagen. Eligiendo un punto 'en el medio' (o uno
+    cualquiera que no sea de los originales) obtenemos un carácter inédito.
+
+    punto_latente: [z1, z2]
+    """
+    z = np.array([punto_latente], dtype="float32")
+    salida = decoder.predict(z, verbose=0)[0]          # 35 valores entre 0 y 1
+    imagen = (salida > 0.5).astype(int)                # umbral 0.5 -> 0/1
+
+    print(f"\n[INFO] Carácter generado en z=({punto_latente[0]:.2f}, "
+          f"{punto_latente[1]:.2f}):")
+    for i in range(7):
+        fila = imagen[i * 5:(i + 1) * 5]
+        print("".join("█" if b else " " for b in fila))
+
+    plt.figure(figsize=(3, 4))
+    plt.imshow(imagen.reshape(7, 5), cmap="binary")
+    plt.title(f"Carácter nuevo\nz=({punto_latente[0]:.2f}, {punto_latente[1]:.2f})")
+    plt.axis("off")
+    plt.savefig(path, dpi=150, bbox_inches="tight")
+    plt.close()
+    print(f"[INFO] Imagen del carácter nuevo guardada en: {path}")
+    return imagen
+
+
+def punto_intermedio(encoder, plane_data, idx_a, idx_b):
+    """Devuelve el punto latente que está justo en el medio entre dos
+    caracteres del dataset (índices idx_a e idx_b). Sirve para generar un
+    carácter nuevo 'mezcla' de esos dos.
+    """
+    coords = encoder.predict(plane_data, verbose=0)
+    medio = (coords[idx_a] + coords[idx_b]) / 2.0
+    return medio.tolist()

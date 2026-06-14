@@ -6,7 +6,12 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import numpy as np
 import matplotlib.pyplot as plt
 from utils.helpers import cargar_txt, read_json, hex_a_binario, prepare_items_for_keras, display_pattern
-from tp_3.addons.functions import autoencoder_keras_instance
+from tp_3.addons.functions import (
+    autoencoder_keras_instance,
+    graficar_espacio_latente,
+    generar_caracter,
+    punto_intermedio,
+)
 
 
 def tp3():
@@ -76,6 +81,19 @@ def tp3():
         # Imprimir lado a lado
         for line_orig, line_pred in zip(orig.split('\n'), pred.split('\n')):
             print(f"{line_orig}       {line_pred}")
+
+    # --- PUNTO 3: gráfico del espacio latente en 2D ---
+    graficar_espacio_latente(encoder, plane_data, y)
+
+    # --- PUNTO 4: generar un carácter nuevo (no entrenado) ---
+    # Opción A: un punto cualquiera del plano elegido a mano
+    generar_caracter(decoder, [0.0, 0.0], path="./Documento/tp3_nuevo.png")
+
+    # Opción B: el punto que está justo entre dos caracteres conocidos
+    # (mezcla del primero y el segundo del dataset). Cambiá los índices
+    # para probar otras combinaciones.
+    medio = punto_intermedio(encoder, plane_data, 0, 1)
+    generar_caracter(decoder, medio, path="./Documento/tp3_nuevo_mezcla.png")
 
     return {}
 
