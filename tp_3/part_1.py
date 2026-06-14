@@ -95,12 +95,17 @@ def tp3():
     # 1. Calcular puntos de interés antes de graficar
     punto_cero = [0.0, 0.0]
     # Mezcla del primer y segundo carácter del dataset (índices 0 y 1)
-    medio = punto_intermedio(encoder, plane_data, 0, 1)
+    mix_data = [3, 6]
+    print("\n[PROCESO] punto intermedio latente...")
+    for idx in mix_data:
+        vis_data = (plane_data[idx] > threshold).astype(int)
+        display_pattern(vis_data, label=y[idx])
+    medio = punto_intermedio(encoder, plane_data, mix_data[0], mix_data[1])
     
     # 2. Gráfico del espacio latente incluyendo los puntos nuevos
     print("\n[PROCESO] Generando mapa del espacio latente...")
     puntos_interes = [punto_cero, medio]
-    etiquetas_interes = ["Origen (0,0)", "Mezcla (0-1)"]
+    etiquetas_interes = ["Origen (0,0)", f"Mezcla ({mix_data[0]}-{mix_data[1]})"]
     graficar_espacio_latente(encoder, plane_data, y, 
                              puntos_extra=puntos_interes, 
                              etiquetas_extra=etiquetas_interes)
