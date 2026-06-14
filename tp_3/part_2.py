@@ -7,8 +7,9 @@ from tp_3.addons.functions import autoencoder_keras_instance
 
 def tp3_part_3():
     print("\n--- EJECUTANDO PARTE 2: POKÉMON 100x100 ---")
-    
+    RECUPERAR_MODELO = False
     # 1. Parámetros de alta resolución
+    
     IMG_SIZE = (100, 100)
     DIM_INPUT = IMG_SIZE[0] * IMG_SIZE[1]
     DIM_LATENT = 64  # Aumentamos el cuello de botella para capturar detalles
@@ -28,16 +29,26 @@ def tp3_part_3():
         output_activation="sigmoid", # Usamos sigmoid 0-1 para imágenes
         loss="mse"
     )
+    models_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "models")
+    model_files = ["autoencoder_pokemon.keras"]
+    modelos_presentes = all(os.path.exists(os.path.join(models_path, f)) for f in model_files)
 
-    print("[INFO] Entrenando Autoencoder de Alta Resolución...")
-    autoencoder.fit(
-        poke_data, poke_data,
-        epochs=100, # Menos épocas porque hay más parámetros, la GPU trabajará duro
-        batch_size=16,
-        shuffle=True,
-        verbose=1,
-        validation_split=0.1
-    )
+    if RECUPERAR_MODELO and modelos_presentes:
+        autoencoder = keras.models.load_model(os.path.join(models_path, "autoencoder_pokemon.keras"))
+    else:
+        print("[INFO] Entrenando Autoencoder de Alta Resolución...")
+        autoencoder.fit(
+            poke_data, poke_data,
+            epochs=5000, # Menos épocas porque hay más parámetros, la GPU trabajará duro
+            batch_size=16,
+            shuffle=True,
+            verbose=1,
+            validation_split=0.1
+        )
+        os.makedirs(models_path, exist_ok=True)
+        autoencoder.save(os.path.join(models_path, "autoencoder_pokemon.keras"))
+        
+    
 
     # 3. Verificación
     idx = np.random.randint(0, len(poke_data))
