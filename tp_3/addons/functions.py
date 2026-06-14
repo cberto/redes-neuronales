@@ -21,7 +21,7 @@ import matplotlib.pyplot as plt
 from keras import layers, Model
 
 
-def autoencoder_keras_instance():
+def autoencoder_keras_instance(output_activation="sigmoid", loss="binary_crossentropy"):
     # Detectar entorno de forma ultra-robusta
     is_linux = sys.platform == 'linux'
     is_wsl = False
@@ -89,17 +89,17 @@ def autoencoder_keras_instance():
     dim_entrada = 35  # Ejemplo: una imagen de MNIST aplanada (28x28)
     dim_latente = 2  # Tamaño del espacio comprimido (cuello de botella)
 
-    # 2. Construir el ENCODER
+    # 2. Construir el ENCODER (Arquitectura Prueba 3: 17 neuronas)
     inputs = layers.Input(shape=(dim_entrada,))
-    encoder_layer = layers.Dense(17, activation="relu")(inputs)
-    latent_space = layers.Dense(dim_latente, activation="relu")(encoder_layer)
+    x_encoder = layers.Dense(17, activation="relu")(inputs)
+    latent_space = layers.Dense(dim_latente, activation="linear")(x_encoder)
 
     encoder = Model(inputs, latent_space, name="Encoder")
 
     # 3. Construir el DECODER
     decoder_inputs = layers.Input(shape=(dim_latente,))
-    decoder_layer = layers.Dense(17, activation="relu")(decoder_inputs)
-    outputs = layers.Dense(dim_entrada, activation="sigmoid")(decoder_layer)
+    x_decoder = layers.Dense(17, activation="relu")(decoder_inputs)
+    outputs = layers.Dense(dim_entrada, activation=output_activation)(x_decoder)
 
     decoder = Model(decoder_inputs, outputs, name="Decoder")
 
@@ -108,7 +108,7 @@ def autoencoder_keras_instance():
     autoencoder = Model(inputs, autoencoder_outputs, name="Autoencoder_Completo")
 
     # 5. Compilar el modelo
-    autoencoder.compile(optimizer="adam", loss="binary_crossentropy")
+    autoencoder.compile(optimizer="adam", loss=loss)
 
     # 6. Mostrar el resumen en la terminal
     autoencoder.summary()
@@ -146,7 +146,7 @@ def graficar_espacio_latente(encoder, plane_data, etiquetas,
 # =====================================================================
 # PUNTO 4: generar un carácter NUEVO (que no está en el entrenamiento)
 # =====================================================================
-def generar_caracter(decoder, punto_latente, path="./Documento/tp3_nuevo.png"):
+def generar_caracter(decoder, punto_latente, threshold=0.5, path="./Documento/tp3_nuevo.png"):
     """El decoder toma cualquier punto (z1, z2) del plano y reconstruye un
     carácter de 35 píxeles. Si el punto NO coincide con el de ningún
     carácter entrenado, la red está GENERANDO algo nuevo.
@@ -160,7 +160,7 @@ def generar_caracter(decoder, punto_latente, path="./Documento/tp3_nuevo.png"):
     """
     z = np.array([punto_latente], dtype="float32")
     salida = decoder.predict(z, verbose=0)[0]          # 35 valores entre 0 y 1
-    imagen = (salida > 0.5).astype(int)                # umbral 0.5 -> 0/1
+    imagen = (salida > threshold).astype(int)          # umbral dinámico
 
     print(f"\n[INFO] Carácter generado en z=({punto_latente[0]:.2f}, "
           f"{punto_latente[1]:.2f}):")

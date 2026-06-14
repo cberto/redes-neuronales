@@ -15,7 +15,12 @@ from tp_3.addons.functions import (
 
 
 def tp3():
-    
+    # --- CONFIGURACIÓN DE PRUEBA ---
+    # CONFIGURACIÓN PRUEBA 3 (LA MEJOR HASTA AHORA)
+    MODO_TANH = True
+    output_act = "tanh" if MODO_TANH else "sigmoid"
+    loss_func = "mse" if MODO_TANH else "binary_crossentropy"
+    threshold = 0.0 if MODO_TANH else 0.5
     path_sal = "./Documento/tp3.json"
     datos_sal = read_json(path_sal)
     matrix_binary = hex_a_binario(datos_sal)
@@ -26,21 +31,26 @@ def tp3():
     plane_data = prepare_items_for_keras(x)
     # Convertir a float32 para máxima compatibilidad con CUDA
     plane_data = np.array(plane_data).astype('float32') 
+
+    if MODO_TANH:
+        # Escalamos de [0, 1] a [-1, 1]
+        plane_data = plane_data * 2 - 1
+
     print("Shape of plane_data:", plane_data.shape)
 
     # Verificación visual de los primeros 3 caracteres
     print("\n--- Verificación de datos de entrada ---")
     for i in range(3):
-        display_pattern(plane_data[i], label=y[i])
+        # Para mostrar, volvemos a 0 y 1 si está en modo tanh
+        vis_data = (plane_data[i] > threshold).astype(int)
+        display_pattern(vis_data, label=y[i])
 
-    autoencoder, encoder, decoder = autoencoder_keras_instance()
-    # Aumentamos épocas: la RTX 5070 lo procesará casi instantáneamente
-    # verbose=1 muestra la barra de progreso. 
-    # validation_split=0.2 separa un 20% de los datos para evaluar el modelo en cada época.
+    autoencoder, encoder, decoder = autoencoder_keras_instance(output_activation=output_act, loss=loss_func)
+
     autoencoder.fit(
         plane_data, 
         plane_data, 
-        epochs=2000, 
+        epochs=2000,
         shuffle=True, 
         verbose=1,
         validation_split=0.1
@@ -69,8 +79,8 @@ def tp3():
     print("VERIFICACIÓN DE RECONSTRUCCIÓN")
     print("="*40)
     
-    # Aplicamos un umbral de 0.5 para binarizar la salida del autoencoder
-    reconstruccion_binaria = (predict_autoencoder > 0.5).astype(int)
+    # Aplicamos el umbral correspondiente a la activación (0.0 para tanh)
+    reconstruccion_binaria = (predict_autoencoder > threshold).astype(int)
 
     for i in range(5):
         print(f"\nCarácter: '{y[i]}'")
@@ -87,13 +97,13 @@ def tp3():
 
     # --- PUNTO 4: generar un carácter nuevo (no entrenado) ---
     # Opción A: un punto cualquiera del plano elegido a mano
-    generar_caracter(decoder, [0.0, 0.0], path="./Documento/tp3_nuevo.png")
+    generar_caracter(decoder, [0.0, 0.0], threshold=threshold, path="./Documento/tp3_nuevo.png")
 
     # Opción B: el punto que está justo entre dos caracteres conocidos
     # (mezcla del primero y el segundo del dataset). Cambiá los índices
     # para probar otras combinaciones.
     medio = punto_intermedio(encoder, plane_data, 0, 1)
-    generar_caracter(decoder, medio, path="./Documento/tp3_nuevo_mezcla.png")
+    generar_caracter(decoder, medio, threshold=threshold, path="./Documento/tp3_nuevo_mezcla.png")
 
     return {}
 
