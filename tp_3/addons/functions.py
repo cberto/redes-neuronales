@@ -21,7 +21,7 @@ import matplotlib.pyplot as plt
 from keras import layers, Model
 
 
-def autoencoder_keras_instance(output_activation="sigmoid", loss="binary_crossentropy"):
+def autoencoder_keras_instance(dim_entrada=35, dim_latente=2, output_activation="sigmoid", loss="binary_crossentropy"):
     # Detectar entorno de forma ultra-robusta
     is_linux = sys.platform == 'linux'
     is_wsl = False
@@ -85,21 +85,30 @@ def autoencoder_keras_instance(output_activation="sigmoid", loss="binary_crossen
 
     print("="*50 + "\n")
 
-    # 1. Definir dimensiones
-    dim_entrada = 35  # Ejemplo: una imagen de MNIST aplanada (28x28)
-    dim_latente = 2  # Tamaño del espacio comprimido (cuello de botella)
-
-    # 2. Construir el ENCODER (Arquitectura Prueba 3: 17 neuronas)
+    # 2. Construir el ENCODER
     inputs = layers.Input(shape=(dim_entrada,))
-    x_encoder = layers.Dense(17, activation="relu")(inputs)
-    latent_space = layers.Dense(dim_latente, activation="linear")(x_encoder)
+    
+    # Si la entrada es grande (ej. 100x100=10000), necesitamos más capas
+    if dim_entrada > 1000:
+        x = layers.Dense(512, activation="relu")(inputs)
+        x = layers.BatchNormalization()(x)
+        x = layers.Dense(128, activation="relu")(x)
+    else:
+        x = layers.Dense(17, activation="relu")(inputs)
+        
+    latent_space = layers.Dense(dim_latente, activation="linear")(x)
 
     encoder = Model(inputs, latent_space, name="Encoder")
 
     # 3. Construir el DECODER
     decoder_inputs = layers.Input(shape=(dim_latente,))
-    x_decoder = layers.Dense(17, activation="relu")(decoder_inputs)
-    outputs = layers.Dense(dim_entrada, activation=output_activation)(x_decoder)
+    if dim_entrada > 1000:
+        x = layers.Dense(128, activation="relu")(decoder_inputs)
+        x = layers.Dense(512, activation="relu")(x)
+    else:
+        x = layers.Dense(17, activation="relu")(decoder_inputs)
+        
+    outputs = layers.Dense(dim_entrada, activation=output_activation)(x)
 
     decoder = Model(decoder_inputs, outputs, name="Decoder")
 

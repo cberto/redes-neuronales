@@ -6,7 +6,14 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import numpy as np
 import keras
 import matplotlib.pyplot as plt
-from utils.helpers import cargar_txt, read_json, hex_a_binario, prepare_items_for_keras, display_pattern
+from utils.helpers import (
+    cargar_txt, 
+    read_json, 
+    hex_a_binario, 
+    prepare_items_for_keras, 
+    display_pattern,
+    fetch_pokemon_as_input
+)
 from tp_3.addons.functions import (
     autoencoder_keras_instance,
     graficar_espacio_latente,
@@ -118,6 +125,29 @@ def tp3():
     # para probar otras combinaciones.
     medio = punto_intermedio(encoder, plane_data, 0, 1)
     generar_caracter(decoder, medio, threshold=threshold, path="./Documento/tp3_nuevo_mezcla.png")
+
+    # --- PRUEBA EXTRA: POKÉMON ---
+    print("\n" + "="*40)
+    print("DETECCIÓN/RECONSTRUCCIÓN DE POKÉMON")
+    print("="*40)
+    
+    # 1: Bulbasaur, 4: Charmander, 7: Squirtle, 25: Pikachu
+    poke_ids = [1, 4, 7, 25]
+    poke_data, poke_names = fetch_pokemon_as_input(poke_ids)
+    
+    if MODO_TANH:
+        poke_data = poke_data * 2 - 1
+
+    poke_preds = autoencoder.predict(poke_data, verbose=0)
+    poke_bin = (poke_preds > threshold).astype(int)
+
+    for i in range(len(poke_names)):
+        print(f"\nPokémon ID {poke_ids[i]}:")
+        print("VISTA PREVIA (7x5):      RECONSTRUCCIÓN:")
+        p_orig = display_pattern((poke_data[i] > threshold).astype(int), return_str=True)
+        p_pred = display_pattern(poke_bin[i], return_str=True)
+        for lo, lp in zip(p_orig.split('\n'), p_pred.split('\n')):
+            print(f"{lo}                    {lp}")
 
     return {}
 

@@ -3,6 +3,9 @@ import math
 import json
 from matplotlib.pylab import shuffle
 import numpy as np
+import requests
+from PIL import Image
+from io import BytesIO
 import matplotlib.pyplot as plt
 from scipy.interpolate import make_interp_spline
 
@@ -605,3 +608,39 @@ def display_pattern(bits, label="", rows=7, cols=5, return_str=False):
     
     for line in output:
         print(line)
+
+def fetch_pokemon_as_input(pokemon_ids, target_size=(5, 7), mode_tanh=True):
+    """
+    Descarga imágenes de PokeAPI, las convierte a escala de grises, 
+    las redimensiona y las normaliza para el autoencoder.
+    """
+    base_url = "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork"
+    processed_images = []
+    names = []
+
+    for p_id in pokemon_ids:
+        try:
+            url = f"{base_url}/{p_id}.png"
+            response = requests.get(url)
+            img = Image.open(BytesIO(response.content))
+            
+            # 1. Convertir a RGBA para manejar transparencia y luego a Grayscale
+            img = img.convert("RGBA")
+            background = Image.new("RGBA", img.size, (255, 255, 255))
+            composite = Image.alpha_composite(background, img).convert("L")
+            
+            # 2. Redimensionar al tamaño del autoencoder (5x7)
+            # Usamos LANCZOS para mantener la calidad en la reducción extrema
+            composite = composite.resize(target_size, Image.Resampling.LANCZOS)
+            
+            # 3. Normalizar y aplanar (0-1)
+            data = np.array(composite).flatten() / 255.0
+            # Invertir colores: PokeAPI tiene fondo blanco, queremos bits 'encendidos' en el objeto
+            data = 1.0 - data
+            
+            processed_images.append(data)
+            names.append(f"Poke_{p_id}")
+        except Exception as e:
+            print(f"[ERROR] No se pudo procesar el Pokémon {p_id}: {e}")
+
+    return np.array(processed_images).astype('float32'), names
