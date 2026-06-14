@@ -1,5 +1,10 @@
 # Lo necesario para `make init` (main.py, tp_1, utils.helpers básico).
 # Versiones flexibles para que pip elija ruedas binarias según tu Python.
-numpy>=2.0
-matplotlib>=3.8
-scipy>=1.11
+numpy>=1.26.0,<2.0.0
+matplotlib>=3.8.0
+scipy>=1.11.0
+tensorflow[and-cuda]>=2.17.0
+keras>=3.3.0
+h5py>=3.10.0
+rich
+pillow

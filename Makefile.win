@@ -1,0 +1,31 @@
+# Windows — usar: make -f Makefile.win init
+.PHONY: init install-venv install-deps deps-full run ej2 update-deps
+
+init: install-venv install-deps run
+
+PYTHON=venv\Scripts\python.exe
+PIP=venv\Scripts\pip.exe
+
+install-venv:
+	@if exist venv\Scripts\python.exe (echo venv ya existe.) else (python -m venv venv && echo Entorno creado.)
+
+install-deps: requirements-runtime.txt install-venv
+	@echo Instalando dependencias de ejecucion...
+	$(PIP) install --upgrade pip
+	$(PIP) install -r requirements-runtime.txt
+	@echo Listado. Para todo el requirements.txt: make deps-full
+
+deps-full: install-venv
+	$(PIP) install -r requirements.txt
+
+run:
+	@echo Ejecutando main.py...
+	set MPLBACKEND=Agg&& $(PYTHON) main.py
+
+ej2:
+	set MPLBACKEND=Agg&& $(PYTHON) ej2_demo.py
+
+update-deps:
+	@echo Actualizando requirements.txt...
+	$(PIP) freeze > requirements.txt
+	@echo Hecho.

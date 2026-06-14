@@ -532,7 +532,6 @@ def outputs_multicapa(size, max=1, min=-1):
 
 
 
-
 def agregar_ruido(bits, prob=0.02):    
     bits = np.asarray(bits)
     #[1, 0, 1, 0]
@@ -577,3 +576,32 @@ def hex_a_binario(matriz):
         matriz_binaria.append(nueva_fila)
         
     return matriz_binaria
+
+
+def prepare_items_for_keras(input_list):
+    matrix = []
+    for row in input_list:
+        item = []
+        # Cada fila es una lista de strings binarios ['00100', '01010', ...]
+        for binary_string in row:
+            for bit in binary_string:
+                item.append(int(bit))
+        matrix.append(item)
+    return matrix
+
+def display_pattern(bits, label="", rows=7, cols=5, return_str=False):
+    """Muestra un vector de bits en formato de rejilla para verificación visual."""
+    output = []
+    if label:
+        output.append(f"\nPatrón para: '{label}'")
+    for i in range(rows):
+        # Extrae los 5 bits que corresponden a la fila actual
+        fila = bits[i * cols : (i + 1) * cols]
+        # Convierte 1 en un bloque sólido y 0 en espacio vacío
+        output.append("".join(["█" if b == 1 else " " for b in fila]))
+    
+    if return_str:
+        return "\n".join(output)
+    
+    for line in output:
+        print(line)

@@ -3,6 +3,8 @@ __pycache__/
 *$py.class
 .venv/
 venv/
+.venv_linux/
+venv_linux/
 ENV/
 .env
 .vscode/
