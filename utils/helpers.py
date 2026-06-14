@@ -546,3 +546,34 @@ def agregar_ruido(bits, prob=0.02):
             ruidoso.append(bits[i]) 
     #[1, 1, 0, 0]        
     return ruidoso
+
+def read_json(file_path, encoding="utf-8"):
+    try:
+        with open(file_path, "r", encoding=encoding) as file:
+            print(f"Datos guardados en {file_path}")
+            datos = json.load(file)
+        return datos
+    except Exception as e:
+        print(f"Error al guardar los datos: {e}")
+        return []
+
+def hex_a_binario(matriz):
+    matriz_binaria = []
+    
+    for fila in matriz:
+        nueva_fila = []
+        # El último elemento es el carácter de control (ej: "2" o "1"), no lo convertimos
+        codigos_hex = fila[:-1]
+        caracter = fila[-1]
+        
+        for h in codigos_hex:
+            # 1. int(h, 16) convierte "0x0e" en el entero 14
+            # 2. f"{...:05b}" lo pasa a binario rellenando con ceros hasta 5 bits
+            binario = f"{int(h, 16):05b}" 
+            nueva_fila.append(binario)
+            
+        # Volvemos a agregar el carácter al final
+        nueva_fila.append(caracter)
+        matriz_binaria.append(nueva_fila)
+        
+    return matriz_binaria
