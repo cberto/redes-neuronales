@@ -4,6 +4,7 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import numpy as np
+import keras
 import matplotlib.pyplot as plt
 from utils.helpers import cargar_txt, read_json, hex_a_binario, prepare_items_for_keras, display_pattern
 from tp_3.addons.functions import (
@@ -16,7 +17,10 @@ from tp_3.addons.functions import (
 
 def tp3():
     # --- CONFIGURACIÓN DE PRUEBA ---
+    
     # CONFIGURACIÓN PRUEBA 3 (LA MEJOR HASTA AHORA)
+    RECUPERAR_MODELO = True  # Cambiar a False para forzar un nuevo entrenamiento
+
     MODO_TANH = True
     output_act = "tanh" if MODO_TANH else "sigmoid"
     loss_func = "mse" if MODO_TANH else "binary_crossentropy"
@@ -45,26 +49,36 @@ def tp3():
         vis_data = (plane_data[i] > threshold).astype(int)
         display_pattern(vis_data, label=y[i])
 
-    autoencoder, encoder, decoder = autoencoder_keras_instance(output_activation=output_act, loss=loss_func)
-
-    autoencoder.fit(
-        plane_data, 
-        plane_data, 
-        epochs=2000,
-        shuffle=True, 
-        verbose=1,
-        validation_split=0.1
-    )
-    
-    # --- Exportar los modelos entrenados ---
-    # Creamos una carpeta 'models' dentro de tp_3 si no existe
     models_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "models")
-    os.makedirs(models_path, exist_ok=True)
+    model_files = ["autoencoder_completo.keras", "encoder.keras", "decoder.keras"]
+    modelos_presentes = all(os.path.exists(os.path.join(models_path, f)) for f in model_files)
 
-    autoencoder.save(os.path.join(models_path, "autoencoder_completo.keras"))
-    encoder.save(os.path.join(models_path, "encoder.keras"))
-    decoder.save(os.path.join(models_path, "decoder.keras"))
-    print(f"\n[INFO] Modelos exportados exitosamente en: {models_path}")
+    if RECUPERAR_MODELO and modelos_presentes:
+        print(f"\n[INFO] Recuperando modelos guardados desde: {models_path}")
+        autoencoder = keras.models.load_model(os.path.join(models_path, "autoencoder_completo.keras"))
+        encoder = keras.models.load_model(os.path.join(models_path, "encoder.keras"))
+        decoder = keras.models.load_model(os.path.join(models_path, "decoder.keras"))
+    else:
+        if RECUPERAR_MODELO and not modelos_presentes:
+            print(f"\n[AVISO] No se encontraron archivos de modelo. Iniciando entrenamiento...")
+
+        autoencoder, encoder, decoder = autoencoder_keras_instance(output_activation=output_act, loss=loss_func)
+
+        autoencoder.fit(
+            plane_data, 
+            plane_data, 
+            epochs=2000,
+            shuffle=True, 
+            verbose=1,
+            validation_split=0.1
+        )
+        
+        # --- Exportar los modelos entrenados ---
+        os.makedirs(models_path, exist_ok=True)
+        autoencoder.save(os.path.join(models_path, "autoencoder_completo.keras"))
+        encoder.save(os.path.join(models_path, "encoder.keras"))
+        decoder.save(os.path.join(models_path, "decoder.keras"))
+        print(f"\n[INFO] Modelos exportados exitosamente en: {models_path}")
 
     predict_autoencoder = autoencoder.predict(plane_data)
     
