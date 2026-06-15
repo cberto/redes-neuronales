@@ -1,0 +1,975 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Autocodificadores · TP3 — paso a paso</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,900;1,9..144,500&family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<style>
+/* ============================== TOKENS ============================== */
+:root{
+  --paper:#f4efe3;
+  --paper-2:#ece5d4;
+  --ink:#101a2e;
+  --ink-soft:#33405a;
+  --ink-faint:#6b7791;
+  --line:#cdc4ad;
+  --line-strong:#b6a988;
+
+  --blue:#2347d9;        /* encoder / entrada */
+  --blue-bright:#3b6bff;
+  --teal:#16967a;        /* latente · funciona */
+  --red:#d6304a;         /* error · dificultad */
+  --amber:#e0852a;       /* denoising / ruido */
+  --violet:#8b2fb0;      /* decoder / generación */
+
+  --shadow: 0 1px 0 #fffdf6 inset, 0 18px 40px -22px rgba(16,26,46,.45);
+  --radius:18px;
+  --maxw:1180px;
+  --font-display:'Fraunces',Georgia,serif;
+  --font-body:'Hanken Grotesk',system-ui,sans-serif;
+  --font-mono:'JetBrains Mono',monospace;
+}
+
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;
+  font-family:var(--font-body);
+  color:var(--ink);
+  background:var(--paper);
+  background-image:
+    linear-gradient(rgba(16,26,46,.045) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(16,26,46,.045) 1px,transparent 1px);
+  background-size:26px 26px;
+  line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+  overflow-x:hidden;
+}
+body::before{
+  content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;opacity:.45;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.25'/%3E%3C/svg%3E");
+  mix-blend-mode:multiply;
+}
+::selection{background:var(--violet);color:#fff}
+
+a{color:inherit}
+h1,h2,h3{font-family:var(--font-display);font-weight:900;line-height:1.02;letter-spacing:-.02em;margin:0}
+p{margin:0 0 1em}
+
+/* ============================== NAV ============================== */
+nav{
+  position:fixed;top:0;left:0;right:0;z-index:100;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px clamp(16px,4vw,46px);
+  background:rgba(244,239,227,.82);
+  backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--line);
+  transition:transform .4s ease;
+}
+nav .brand{font-family:var(--font-mono);font-weight:700;font-size:.82rem;letter-spacing:.12em;text-transform:uppercase;display:flex;gap:.6em;align-items:center}
+nav .brand .dot{width:11px;height:11px;border-radius:50%;background:var(--violet);box-shadow:0 0 0 3px rgba(139,47,176,.18)}
+nav ul{display:flex;gap:clamp(8px,1.8vw,26px);list-style:none;margin:0;padding:0;font-family:var(--font-mono);font-size:.74rem;letter-spacing:.04em;text-transform:uppercase}
+nav ul a{text-decoration:none;color:var(--ink-soft);position:relative;padding:4px 2px;transition:color .2s}
+nav ul a::after{content:"";position:absolute;left:0;bottom:-2px;height:2px;width:0;background:var(--violet);transition:width .25s}
+nav ul a:hover{color:var(--ink)}
+nav ul a:hover::after{width:100%}
+@media(max-width:760px){nav ul{display:none}}
+
+/* ============================== LAYOUT ============================== */
+section{position:relative;padding:clamp(70px,9vw,130px) clamp(16px,4vw,46px)}
+.wrap{max-width:var(--maxw);margin:0 auto}
+.eyebrow{font-family:var(--font-mono);font-size:.76rem;letter-spacing:.22em;text-transform:uppercase;color:var(--violet);font-weight:700;display:inline-flex;align-items:center;gap:.7em;margin-bottom:1.1em}
+.eyebrow::before{content:"";width:34px;height:2px;background:var(--violet)}
+
+.reveal{opacity:0;transform:translateY(34px);transition:opacity .7s cubic-bezier(.2,.7,.2,1),transform .7s cubic-bezier(.2,.7,.2,1)}
+.reveal.in{opacity:1;transform:none}
+.reveal.d1{transition-delay:.08s}.reveal.d2{transition-delay:.16s}.reveal.d3{transition-delay:.24s}.reveal.d4{transition-delay:.32s}.reveal.d5{transition-delay:.4s}
+
+/* ============================== HERO ============================== */
+#hero{min-height:100vh;display:flex;align-items:center;padding-top:120px;overflow:hidden}
+#hero .wrap{position:relative;z-index:2}
+.hero-tag{font-family:var(--font-mono);font-size:.8rem;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:1.4em;display:flex;flex-wrap:wrap;gap:.5em 1.4em}
+.hero-tag b{color:var(--violet)}
+#hero h1{font-size:clamp(2.6rem,9vw,8rem);letter-spacing:-.035em}
+#hero h1 .ital{font-style:italic;font-weight:500;color:var(--violet)}
+.hero-sub{font-family:var(--font-display);font-style:italic;font-weight:500;font-size:clamp(1.2rem,3vw,2rem);color:var(--ink-soft);max-width:34ch;margin-top:.5em}
+.hero-meta{display:flex;flex-wrap:wrap;gap:14px;margin-top:2.6em}
+.chip{font-family:var(--font-mono);font-size:.78rem;letter-spacing:.04em;background:var(--ink);color:var(--paper);padding:9px 16px;border-radius:40px;display:inline-flex;align-items:center;gap:.6em}
+.chip.ghost{background:transparent;color:var(--ink);border:1.5px solid var(--line-strong)}
+.chip .k{color:var(--blue-bright)}
+.scroll-hint{position:absolute;bottom:30px;left:clamp(16px,4vw,46px);font-family:var(--font-mono);font-size:.7rem;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);display:flex;align-items:center;gap:.8em}
+.scroll-hint .bar{width:1px;height:34px;background:var(--line-strong);position:relative;overflow:hidden}
+.scroll-hint .bar::after{content:"";position:absolute;top:-50%;left:0;width:100%;height:50%;background:var(--violet);animation:drip 1.8s infinite}
+@keyframes drip{0%{top:-50%}100%{top:100%}}
+
+.hero-net{position:absolute;inset:0;z-index:1;opacity:.5;pointer-events:none}
+
+/* ============================== MÉTODO ============================== */
+.lead{font-size:clamp(1.15rem,2.4vw,1.5rem);max-width:34ch;font-family:var(--font-display);font-weight:400;color:var(--ink);line-height:1.3}
+.grid-2{display:grid;grid-template-columns:1.1fr .9fr;gap:clamp(28px,5vw,64px);align-items:center}
+@media(max-width:900px){.grid-2{grid-template-columns:1fr}}
+
+.netcard{
+  background:linear-gradient(165deg,#fffdf7,#f0e9d8);
+  border:1px solid var(--line);border-radius:var(--radius);
+  box-shadow:var(--shadow);padding:24px;position:relative;
+}
+.netcard .head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-family:var(--font-mono);font-size:.74rem;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint)}
+.controls{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap}
+.btn{
+  font-family:var(--font-mono);font-size:.76rem;font-weight:700;letter-spacing:.04em;
+  border:1.5px solid var(--ink);background:var(--ink);color:var(--paper);
+  padding:10px 16px;border-radius:40px;cursor:pointer;transition:transform .15s,box-shadow .2s,background .2s;
+  display:inline-flex;align-items:center;gap:.5em;text-decoration:none;
+}
+.btn:hover{transform:translateY(-2px);box-shadow:0 10px 20px -10px rgba(16,26,46,.6)}
+.btn.alt{background:transparent;color:var(--ink)}
+.btn.fwd{border-color:var(--violet);background:var(--violet)}
+
+svg.net text{font-family:var(--font-mono);font-weight:700}
+.node{fill:#fffef9;stroke:var(--ink);stroke-width:2;transition:fill .3s,stroke .3s,filter .3s}
+.edge{stroke:var(--line-strong);stroke-width:1.2;fill:none;transition:stroke .3s,stroke-width .3s,opacity .3s;opacity:.4}
+.edge.lit-fwd{stroke:var(--violet);stroke-width:2.4;opacity:.95}
+.node.lit-fwd{fill:var(--violet);stroke:var(--violet);filter:drop-shadow(0 0 9px rgba(139,47,176,.6))}
+.node.lit-enc{fill:var(--blue);stroke:var(--blue);filter:drop-shadow(0 0 9px rgba(35,71,217,.6))}
+.node.lit-lat{fill:var(--teal);stroke:var(--teal);filter:drop-shadow(0 0 11px rgba(22,150,122,.7))}
+.lyr-label{fill:var(--ink-faint);font-size:11px;letter-spacing:.08em;text-transform:uppercase}
+
+/* flow strip */
+.flow{display:flex;flex-wrap:wrap;align-items:stretch;gap:10px;margin-top:34px}
+.flow .step{
+  flex:1 1 120px;background:#fffdf7;border:1px solid var(--line);border-radius:14px;padding:14px 16px;position:relative;min-width:110px;
+}
+.flow .step .lab{font-family:var(--font-mono);font-size:.66rem;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint)}
+.flow .step .val{font-family:var(--font-display);font-size:1.5rem;font-weight:600;margin-top:2px}
+.flow .step.b1{border-bottom:3px solid var(--blue)}
+.flow .step.b2{border-bottom:3px solid var(--teal)}
+.flow .step.b3{border-bottom:3px solid var(--violet)}
+.flow .arrow{align-self:center;color:var(--violet);font-size:1.3rem}
+@media(max-width:640px){.flow .arrow{transform:rotate(90deg)}}
+
+/* formula cards */
+.fcards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-top:36px}
+.fcard{background:#fffdf7;border:1px solid var(--line);border-left:4px solid var(--blue);border-radius:14px;padding:18px 20px;box-shadow:var(--shadow)}
+.fcard.up{border-left-color:var(--violet)}
+.fcard.lat{border-left-color:var(--teal)}
+.fcard h4{font-family:var(--font-mono);font-size:.74rem;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint);margin:0 0 10px;font-weight:700;display:flex;align-items:center;gap:.5em}
+.fcard .num{width:22px;height:22px;border-radius:50%;background:var(--blue);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:.72rem}
+.fcard.up .num{background:var(--violet)}
+.fcard.lat .num{background:var(--teal)}
+.formula{font-family:var(--font-mono);font-size:1.02rem;background:var(--paper-2);border-radius:8px;padding:10px 12px;color:var(--ink);overflow-x:auto}
+.fcard p{font-size:.92rem;color:var(--ink-soft);margin:.7em 0 0}
+.formula sub{font-size:.7em}.formula sup{font-size:.7em}
+
+/* explicación en palabras simples */
+.simple{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:42px}
+@media(max-width:760px){.simple{grid-template-columns:1fr}}
+.scard{background:#fffdf7;border:1px solid var(--line);border-radius:var(--radius);padding:24px 26px;position:relative;box-shadow:var(--shadow)}
+.scard .tag{font-family:var(--font-mono);font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;font-weight:700;display:inline-flex;align-items:center;gap:.5em;margin-bottom:.7em}
+.scard h4{font-family:var(--font-display);font-weight:600;font-size:1.25rem;margin:0 0 .5em}
+.scard p{font-size:.96rem;color:var(--ink-soft);margin:0 0 .7em}
+.scard p:last-child{margin-bottom:0}
+.scard .hl{background:rgba(139,47,176,.13);padding:1px 5px;border-radius:5px;font-weight:600;color:var(--ink)}
+
+/* leyenda de símbolos */
+.minihead{font-family:var(--font-mono);font-size:.78rem;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint);font-weight:700;margin:46px 0 6px;display:flex;align-items:center;gap:.7em}
+.minihead::before{content:"";width:22px;height:2px;background:var(--ink-faint)}
+.symbols{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0 0}
+.sym{display:flex;align-items:baseline;gap:.55em;background:var(--paper-2);border:1px solid var(--line);border-radius:10px;padding:8px 13px}
+.sym b{font-family:var(--font-mono);font-size:1rem;color:var(--violet)}
+.sym span{font-size:.82rem;color:var(--ink-soft)}
+
+/* ============================== ALGORITMO ============================== */
+.algo{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-top:8px;counter-reset:step}
+.astep{background:#fffdf7;border:1px solid var(--line);border-radius:14px;padding:20px 22px 18px;position:relative;overflow:hidden;transition:transform .25s,box-shadow .25s}
+.astep:hover{transform:translateY(-4px);box-shadow:0 18px 30px -20px rgba(16,26,46,.5)}
+.astep::before{counter-increment:step;content:counter(step,decimal-leading-zero);position:absolute;top:-14px;right:6px;font-family:var(--font-display);font-weight:900;font-size:3.6rem;color:rgba(139,47,176,.1)}
+.astep h4{font-size:1.05rem;font-family:var(--font-display);font-weight:600;margin-bottom:.3em}
+.astep p{font-size:.9rem;color:var(--ink-soft);margin:0}
+.astep code{font-family:var(--font-mono);font-size:.82rem;background:var(--paper-2);padding:1px 5px;border-radius:5px}
+
+/* ============================== EXERCISES ============================== */
+.ex-head{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;flex-wrap:wrap;border-bottom:2px solid var(--ink);padding-bottom:20px;margin-bottom:40px}
+.ex-num{font-family:var(--font-display);font-weight:900;font-size:clamp(3rem,9vw,7rem);line-height:.8;letter-spacing:-.04em}
+.ex-title{font-size:clamp(1.5rem,4vw,2.6rem)}
+.ex-pill{font-family:var(--font-mono);font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;padding:6px 14px;border-radius:40px;color:#fff;font-weight:700}
+
+.exgrid{display:grid;grid-template-columns:1fr 1fr;gap:clamp(22px,4vw,42px)}
+@media(max-width:880px){.exgrid{grid-template-columns:1fr}}
+
+.panel{background:#fffdf7;border:1px solid var(--line);border-radius:var(--radius);padding:26px;box-shadow:var(--shadow)}
+.panel h3{font-size:1.15rem;font-family:var(--font-display);font-weight:600;margin-bottom:.6em;display:flex;align-items:center;gap:.55em}
+.panel h3 .tg{font-family:var(--font-mono);font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;padding:3px 8px;border-radius:6px;background:var(--paper-2);color:var(--ink-faint);font-weight:700}
+.panel ul{margin:0;padding-left:1.1em}
+.panel li{margin-bottom:.55em;color:var(--ink-soft)}
+.panel li b{color:var(--ink)}
+
+.spec{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px}
+.spec div{background:var(--paper-2);border-radius:10px;padding:8px 12px;font-family:var(--font-mono);font-size:.78rem}
+.spec div span{color:var(--ink-faint);display:block;font-size:.66rem;letter-spacing:.06em;text-transform:uppercase}
+.spec div b{font-size:1rem}
+
+/* code block */
+.code{
+  background:#0e1828;border-radius:14px;overflow:hidden;border:1px solid #1d2c45;
+  font-family:var(--font-mono);font-size:.8rem;line-height:1.65;box-shadow:0 24px 40px -26px rgba(16,26,46,.8);
+}
+.code .bar{display:flex;align-items:center;gap:7px;padding:11px 16px;background:#0a1220;border-bottom:1px solid #1d2c45}
+.code .bar i{width:11px;height:11px;border-radius:50%;display:inline-block}
+.code .bar .t{margin-left:auto;font-size:.7rem;color:#5b6b86;letter-spacing:.06em}
+.code pre{margin:0;padding:16px 18px;overflow-x:auto;color:#cdd9ee}
+.code .ln{display:block;padding:1px 8px;border-radius:4px}
+.tok-k{color:#6ea8ff}.tok-f{color:#79e0c4}.tok-s{color:#e0a96d}.tok-c{color:#5b6b86;font-style:italic}.tok-n{color:#d98fd0}.tok-v{color:#e7eefc}
+
+.codenote{display:flex;gap:10px;align-items:flex-start;margin-top:14px;font-size:.86rem;color:var(--ink-soft)}
+.codenote .b{flex:none;width:24px;height:24px;border-radius:7px;background:var(--violet);color:#fff;font-family:var(--font-mono);font-weight:700;display:flex;align-items:center;justify-content:center;font-size:.74rem}
+
+/* tabla de pruebas */
+.tbl-wrap{overflow-x:auto;border-radius:var(--radius);border:1px solid var(--line);box-shadow:var(--shadow);background:#fffdf7}
+table.pruebas{border-collapse:collapse;width:100%;font-size:.86rem;min-width:620px}
+table.pruebas th,table.pruebas td{padding:12px 14px;text-align:left;border-bottom:1px solid var(--line)}
+table.pruebas th{font-family:var(--font-mono);font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint);background:var(--paper-2)}
+table.pruebas td{color:var(--ink-soft)}
+table.pruebas td code{font-family:var(--font-mono);font-size:.82rem;background:var(--paper-2);padding:1px 5px;border-radius:5px;color:var(--ink)}
+table.pruebas tr.best{background:rgba(22,150,122,.08)}
+table.pruebas tr.best td:first-child{border-left:3px solid var(--teal)}
+.tbl-badge{font-family:var(--font-mono);font-size:.6rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;background:var(--teal);color:#fff;padding:2px 7px;border-radius:20px;margin-left:.5em}
+
+/* grilla de pixeles (carácter 7x5) */
+.pix-row{display:flex;gap:26px;flex-wrap:wrap;justify-content:center;align-items:flex-start;margin-top:6px}
+.pix-block{text-align:center}
+.pix-block .cap{font-family:var(--font-mono);font-size:.66rem;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:8px}
+svg.pixgrid{background:#fffdf7;border:1px solid var(--line);border-radius:10px}
+.pix-on{fill:var(--ink)}
+.pix-off{fill:#fffdf7;stroke:var(--line);stroke-width:.6}
+
+/* figuras con imagen */
+.figcard{background:linear-gradient(165deg,#fffdf7,#f0e9d8);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px;text-align:center}
+.figcard img{display:block;width:100%;height:auto;border-radius:12px;background:#fff}
+.figcard .cap{font-family:var(--font-mono);font-size:.72rem;color:var(--ink-faint);margin-top:12px;line-height:1.5}
+.fig2{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+@media(max-width:760px){.fig2{grid-template-columns:1fr}}
+
+.result{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;margin-top:4px}
+.metric{background:linear-gradient(160deg,#fffdf7,#f0e9d8);border:1px solid var(--line);border-radius:14px;padding:16px 18px;text-align:left}
+.metric .v{font-family:var(--font-display);font-weight:900;font-size:2rem;line-height:1;letter-spacing:-.02em}
+.metric .l{font-family:var(--font-mono);font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint);margin-top:6px}
+
+/* ============================== CONCLUSION ============================== */
+.concl{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px}
+.ccard{background:#fffdf7;border:1px solid var(--line);border-radius:14px;padding:24px;border-top:4px solid var(--violet)}
+.ccard .ic{font-family:var(--font-display);font-weight:900;font-size:1.6rem;color:var(--violet)}
+.ccard h4{font-family:var(--font-display);font-weight:600;font-size:1.1rem;margin:.4em 0}
+.ccard p{font-size:.9rem;color:var(--ink-soft);margin:0}
+
+.glossary{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-top:14px}
+.gterm{background:var(--paper-2);border-radius:12px;padding:14px 16px}
+.gterm b{font-family:var(--font-mono);color:var(--violet);font-size:.9rem}
+.gterm p{margin:.3em 0 0;font-size:.85rem;color:var(--ink-soft)}
+
+footer{padding:40px clamp(16px,4vw,46px) 60px;border-top:1px solid var(--line);font-family:var(--font-mono);font-size:.76rem;color:var(--ink-faint);text-align:center}
+footer .big{font-family:var(--font-display);font-weight:900;font-size:clamp(2rem,7vw,5rem);color:var(--ink);letter-spacing:-.03em;line-height:1;margin-bottom:.3em}
+
+.secnum{position:absolute;top:clamp(40px,7vw,90px);right:clamp(16px,4vw,46px);font-family:var(--font-display);font-weight:900;font-size:clamp(2.4rem,5vw,4rem);color:var(--line);opacity:.7;z-index:0;will-change:transform}
+
+/* ============================== INTERACTIVO ============================== */
+#progress{position:fixed;top:0;left:0;height:3px;width:0;z-index:200;background:linear-gradient(90deg,var(--blue),var(--teal),var(--violet));transition:width .08s linear}
+nav ul a.active{color:var(--ink)}
+nav ul a.active::after{width:100%}
+.metric,.gterm,.ccard,.scard,.fcard,.sym{transition:transform .22s cubic-bezier(.2,.7,.2,1),box-shadow .22s}
+.metric:hover,.gterm:hover,.ccard:hover,.scard:hover,.fcard:hover{transform:translateY(-4px);box-shadow:0 18px 30px -20px rgba(16,26,46,.5)}
+.sym:hover{transform:translateY(-2px)}
+
+#recordatorio{position:fixed;bottom:20px;right:20px;z-index:150;max-width:300px;background:var(--ink);color:var(--paper);border-radius:14px;padding:14px 30px 14px 44px;box-shadow:0 18px 40px -18px rgba(16,26,46,.7);font-size:.86rem;line-height:1.45;opacity:0;transform:translateY(10px);pointer-events:none;transition:opacity .3s,transform .3s}
+#recordatorio.show{opacity:1;transform:none;pointer-events:auto}
+#recordatorio::before{content:"💡";position:absolute;left:14px;top:13px}
+#recordatorio .rtitle{font-family:var(--font-mono);font-size:.62rem;letter-spacing:.12em;text-transform:uppercase;color:#d29bef;font-weight:700;margin-bottom:3px}
+#recordatorio .rclose{position:absolute;top:6px;right:11px;cursor:pointer;color:var(--ink-faint);font-size:1.1rem;line-height:1}
+#recordatorio .rclose:hover{color:var(--paper)}
+#recToggle{position:fixed;bottom:20px;right:20px;z-index:149;width:50px;height:50px;border-radius:50%;background:var(--ink);color:var(--paper);border:none;cursor:pointer;font-size:1.3rem;box-shadow:0 12px 28px -12px rgba(16,26,46,.7);display:none;align-items:center;justify-content:center}
+@media(max-width:760px){#recordatorio{max-width:210px;font-size:.78rem}}
+/* lámina resumen (poster) */
+.poster{position:relative;max-width:900px;margin:18px auto 0;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow)}
+.poster img{display:block;width:100%;height:auto}
+.poster-cap{font-family:var(--font-mono);font-size:.74rem;color:var(--ink-faint);text-align:center;margin:12px auto 0;max-width:760px}
+.poster-ctrl{display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap;margin:14px auto 0;max-width:760px}
+@media(prefers-reduced-motion:reduce){*{animation-duration:.001ms!important;transition-duration:.001ms!important}}
+</style>
+</head>
+<body>
+<div id="progress"></div>
+<div id="recordatorio">
+  <span class="rclose" id="recClose">×</span>
+  <div class="rtitle">Recordatorio</div>
+  <div class="rbody">Scrolleá para empezar.</div>
+</div>
+<button id="recToggle" title="Mostrar recordatorio">💡</button>
+
+<!-- ============ NAV ============ -->
+<nav id="nav">
+  <div class="brand"><span class="dot"></span>TP3 · Autocodificadores</div>
+  <ul>
+    <li><a href="#hero">Inicio</a></li>
+    <li><a href="#metodo">Qué es</a></li>
+    <li><a href="#arq">Arquitectura</a></li>
+    <li><a href="#p1">1 · Caracteres</a></li>
+    <li><a href="#p2">2 · Ruido</a></li>
+    <li><a href="#p3">3 · Generar</a></li>
+    <li><a href="#ayuda">Ayuda memoria</a></li>
+    <li><a href="#conclusiones">Conclusión</a></li>
+  </ul>
+</nav>
+
+<!-- ============ HERO ============ -->
+<section id="hero">
+  <svg class="hero-net" viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid slice" id="heroNet"></svg>
+  <div class="wrap">
+    <div class="hero-tag reveal">
+      <span>Fundamentos de Redes Neuronales</span>
+      <span>·</span>
+      <span><b>UNAHUR</b> — Tec. en Inteligencia Artificial</span>
+    </div>
+    <h1 class="reveal d1">Auto<span class="ital">codificadores</span></h1>
+    <p class="hero-sub reveal d2">Una red que aprende a copiarse a sí misma, pasando por un cuello de botella — y de ahí sale algo nuevo. Los 3 puntos del TP3, paso a paso.</p>
+    <div class="hero-meta reveal d3">
+      <span class="chip"><span class="k">TP</span> Trabajo Práctico 3</span>
+      <span class="chip ghost">Docente · Emiliano Churruca</span>
+      <span class="chip ghost">Entrega · 23 de junio 2026</span>
+    </div>
+    <div class="hero-meta reveal d4" style="margin-top:14px">
+      <span class="chip ghost">Integrantes: <span style="color:var(--violet);margin-left:.4em">Bertolani Camila · Molina Claudio</span></span>
+    </div>
+  </div>
+  <div class="scroll-hint"><span class="bar"></span>Scrolleá para empezar</div>
+</section>
+
+<!-- ============ MÉTODO ============ -->
+<section id="metodo">
+  <span class="secnum">00</span>
+  <div class="wrap">
+    <div class="eyebrow reveal">El método · una red que se reconstruye</div>
+    <div class="grid-2">
+      <div>
+        <h2 class="reveal d1" style="font-size:clamp(2rem,5vw,3.4rem)">¿Qué es un autocodificador?</h2>
+        <p class="lead reveal d2" style="margin-top:24px">Es una red que aprende a <em>reconstruir su propia entrada</em>. Le das un dato y tiene que devolver ese mismo dato… pero obligándola a pasar antes por un <b>cuello de botella</b>.</p>
+        <p class="reveal d3" style="margin-top:18px;color:var(--ink-soft);max-width:44ch">Tiene dos mitades. El <b style="color:var(--blue)">codificador</b> comprime el dato a unos pocos números (el <b style="color:var(--teal)">espacio latente</b>). El <b style="color:var(--violet)">decodificador</b> toma esos números y trata de volver al dato original. Como en el medio hay muchísima menos información, la red está <em>forzada</em> a quedarse sólo con lo importante. Aprender = lograr que la copia se parezca al original.</p>
+      </div>
+      <div class="netcard reveal d2">
+        <div class="head"><span>Autoencoder · 35 → 17 → 2 → 17 → 35</span><span id="netState">listo</span></div>
+        <svg class="net" id="aenet" viewBox="0 0 480 320" aria-label="Autocodificador animado"></svg>
+        <div class="controls">
+          <button class="btn fwd" id="btnFwd">▶ Ver cómo reconstruye</button>
+          <button class="btn alt" id="btnReset">Reiniciar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- lámina resumen: poster -->
+    <div class="minihead reveal" style="margin-top:46px">Todo el autocodificador, de un vistazo</div>
+    <figure class="poster reveal d1" id="poster">
+      <img src="image.png" alt="Autocodificador paso a paso: entrada, codificador, capa latente (cuello de botella), decodificador, salida reconstruida, error de reconstrucción y entrenamiento, con todas las fórmulas" loading="lazy" />
+    </figure>
+    <figcaption class="poster-cap reveal">Entra un dato → el codificador lo comprime al espacio latente → el decodificador lo reconstruye → se compara la copia con el original y se corrige. Todo lo que sigue abajo es esto mismo, parte por parte.</figcaption>
+    <div class="poster-ctrl reveal">
+      <a class="btn alt" href="image.png" target="_blank" rel="noopener">⤢ ver completa</a>
+    </div>
+
+    <!-- en palabras simples -->
+    <div class="simple">
+      <div class="scard reveal" style="border-top:4px solid var(--blue)">
+        <div class="tag" style="color:var(--blue)">① El codificador · comprimir</div>
+        <h4>Achicar el dato a lo esencial</h4>
+        <p>El codificador agarra el dato entero (35 píxeles de un carácter) y lo va apretando capa a capa hasta dejarlo en <span class="hl">sólo 2 números</span> (z₁, z₂).</p>
+        <p>🎒 <b>Como armar una mochila chica para un viaje:</b> no entra todo, así que tenés que decidir qué es lo realmente importante y dejar el resto. Eso que sí entra es la representación latente.</p>
+      </div>
+      <div class="scard reveal d1" style="border-top:4px solid var(--violet)">
+        <div class="tag" style="color:var(--violet)">② El decodificador · reconstruir</div>
+        <h4>Volver al dato original desde 2 números</h4>
+        <p>El decodificador hace el camino inverso: toma esos 2 números y trata de <span class="hl">redibujar el carácter completo</span> de 35 píxeles.</p>
+        <p>🧩 <b>Como reconstruir un recuerdo:</b> con unas pocas pistas (“era una letra con dos rayas verticales”) tu cabeza vuelve a armar la imagen entera. Si la red guardó buenas pistas, la copia sale casi idéntica.</p>
+      </div>
+    </div>
+
+    <!-- flow strip -->
+    <div class="minihead reveal" style="margin-top:46px">El recorrido de un dato, de la entrada a la copia</div>
+    <div class="flow reveal d2">
+      <div class="step b1"><div class="lab">entrada</div><div class="val">x</div></div>
+      <div class="arrow">→</div>
+      <div class="step b1"><div class="lab">codificador</div><div class="val">g(Wx+b)</div></div>
+      <div class="arrow">→</div>
+      <div class="step b2"><div class="lab">espacio latente</div><div class="val">z</div></div>
+      <div class="arrow">→</div>
+      <div class="step b3"><div class="lab">decodificador</div><div class="val">dec(z)</div></div>
+      <div class="arrow">→</div>
+      <div class="step b3"><div class="lab">copia</div><div class="val">x̂</div></div>
+    </div>
+
+    <!-- símbolos -->
+    <div class="minihead reveal">Cómo leer las fórmulas — qué es cada símbolo</div>
+    <div class="symbols reveal d1">
+      <div class="sym"><b>x</b><span>el dato de entrada</span></div>
+      <div class="sym"><b>x̂</b><span>la copia reconstruida</span></div>
+      <div class="sym"><b>z</b><span>la versión comprimida (latente)</span></div>
+      <div class="sym"><b>W, b</b><span>pesos y sesgos</span></div>
+      <div class="sym"><b>g</b><span>función de activación</span></div>
+      <div class="sym"><b>k</b><span>tamaño del cuello (acá k=2)</span></div>
+      <div class="sym"><b>d</b><span>tamaño del dato (acá d=35)</span></div>
+      <div class="sym"><b>E</b><span>error de reconstrucción</span></div>
+    </div>
+
+    <!-- formula cards -->
+    <div class="minihead reveal" style="margin-top:34px">Las mismas ideas, ahora en fórmulas</div>
+    <div class="fcards">
+      <div class="fcard reveal">
+        <h4><span class="num">1</span> Codificar</h4>
+        <div class="formula">z = g(W·x + b)</div>
+        <p>Comprime la entrada de <code>d</code> valores a <code>k</code> valores (con <code>k &lt; d</code>). Ese es el cuello de botella.</p>
+      </div>
+      <div class="fcard lat reveal d1">
+        <h4><span class="num">2</span> Latente</h4>
+        <div class="formula">z ∈ ℝ<sup>k</sup>, &nbsp; k &lt; d</div>
+        <p>El dato vive comprimido en pocas dimensiones. Acá <code>k=2</code>, así lo podemos dibujar en un plano.</p>
+      </div>
+      <div class="fcard up reveal d2">
+        <h4><span class="num">3</span> Decodificar</h4>
+        <div class="formula">x̂ = dec(z)</div>
+        <p>Reconstruye el dato a partir de <code>z</code>. El objetivo es que <code>x̂ ≈ x</code>.</p>
+      </div>
+      <div class="fcard up reveal d2">
+        <h4><span class="num">4</span> Error de reconstrucción</h4>
+        <div class="formula">E = ½ Σ (x − x̂)²</div>
+        <p>Cuánto se diferencia la copia del original. Se entrena con backpropagation para que baje. Es el MSE.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ ARQUITECTURA / DECISIONES ============ -->
+<section id="arq" style="background:var(--paper-2)">
+  <span class="secnum">01</span>
+  <div class="wrap">
+    <div class="eyebrow reveal">La arquitectura · qué red armamos</div>
+    <h2 class="reveal d1" style="font-size:clamp(2rem,5vw,3.2rem);max-width:20ch">El cuello de botella de 2D y por qué lo elegimos así</h2>
+    <p class="reveal d2" style="max-width:70ch;color:var(--ink-soft);margin-top:16px">
+      Cada carácter es una imagen binaria de <b>7×5 = 35 píxeles</b>. La consigna pide que el espacio latente sea de <b>2 dimensiones</b>, así que armamos una red con forma de reloj de arena: <b>35 → 17 → 2 → 17 → 35</b>. El <b>2</b> del medio no es casualidad: es lo que después nos deja graficar todos los caracteres en un plano.
+    </p>
+
+    <div class="exgrid" style="margin-top:36px">
+      <div class="panel reveal d1">
+        <h3>Cómo está armada <span class="tg">capas</span></h3>
+        <ul>
+          <li><b style="color:var(--blue)">Codificador:</b> entrada de 35 → capa densa de <code>17</code> (ReLU) → capa latente de <code>2</code> (lineal).</li>
+          <li><b style="color:var(--teal)">Latente:</b> 2 neuronas, activación <b>lineal</b>. Es el cuello de botella que comprime todo.</li>
+          <li><b style="color:var(--violet)">Decodificador:</b> de 2 → capa densa de <code>17</code> (ReLU) → salida de <code>35</code>.</li>
+          <li>Salida con <b>tanh</b>, pérdida <b>MSE</b>, optimizador <b>Adam</b>, <b>2000</b> épocas.</li>
+        </ul>
+        <div class="spec" style="margin-top:14px">
+          <div><span>entrada</span><b>35 (7×5)</b></div>
+          <div><span>latente</span><b>2</b></div>
+          <div><span>épocas</span><b>2000</b></div>
+          <div><span>optimizador</span><b>Adam</b></div>
+        </div>
+      </div>
+
+      <div class="reveal d2">
+        <div class="code">
+          <div class="bar"><i style="background:#ff5f56"></i><i style="background:#ffbd2e"></i><i style="background:#27c93f"></i><span class="t">tp_3/addons/functions.py · autoencoder</span></div>
+          <pre><code><span class="ln"><span class="tok-c"># ENCODER: 35 -&gt; 17 -&gt; 2</span></span>
+<span class="ln">inputs = layers.<span class="tok-f">Input</span>(shape=(<span class="tok-n">35</span>,))</span>
+<span class="ln">x = layers.<span class="tok-f">Dense</span>(<span class="tok-n">17</span>, activation=<span class="tok-s">"relu"</span>)(inputs)</span>
+<span class="ln">latente = layers.<span class="tok-f">Dense</span>(<span class="tok-n">2</span>, activation=<span class="tok-s">"linear"</span>)(x)</span>
+<span class="ln">encoder = <span class="tok-f">Model</span>(inputs, latente)</span>
+<span class="ln"></span>
+<span class="ln"><span class="tok-c"># DECODER: 2 -&gt; 17 -&gt; 35</span></span>
+<span class="ln">d_in = layers.<span class="tok-f">Input</span>(shape=(<span class="tok-n">2</span>,))</span>
+<span class="ln">x = layers.<span class="tok-f">Dense</span>(<span class="tok-n">17</span>, activation=<span class="tok-s">"relu"</span>)(d_in)</span>
+<span class="ln">out = layers.<span class="tok-f">Dense</span>(<span class="tok-n">35</span>, activation=<span class="tok-s">"tanh"</span>)(x)</span>
+<span class="ln">decoder = <span class="tok-f">Model</span>(d_in, out)</span>
+<span class="ln"></span>
+<span class="ln"><span class="tok-c"># AUTOENCODER = encoder + decoder</span></span>
+<span class="ln">ae = <span class="tok-f">Model</span>(inputs, <span class="tok-f">decoder</span>(<span class="tok-f">encoder</span>(inputs)))</span>
+<span class="ln">ae.<span class="tok-f">compile</span>(optimizer=<span class="tok-s">"adam"</span>, loss=<span class="tok-s">"mse"</span>)</span></code></pre>
+        </div>
+        <div class="codenote"><span class="b">i</span><span>Usamos <b>tanh</b> en la salida y escalamos las imágenes de <code>{0,1}</code> a <code>{−1,1}</code>. El umbral para volver a blanco/negro pasa a ser <code>0.0</code>. Esta combinación (tanh + lineal + MSE) fue la que mejor reconstruyó.</span></div>
+      </div>
+    </div>
+
+    <!-- proceso de prueba y error -->
+    <div class="minihead reveal" style="margin-top:50px">Las 5 pruebas que hicimos hasta que convergió</div>
+    <p class="reveal d1" style="max-width:74ch;color:var(--ink-soft);margin-bottom:18px">
+      No salió a la primera. La consigna pide justamente <b>estudiar y describir las arquitecturas y parámetros que fuimos probando</b>. Fuimos cambiando la activación de salida, la del latente, la función de pérdida y la cantidad de capas, mirando el <code>val_loss</code> (el error sobre datos que no entrenó).
+    </p>
+    <div class="tbl-wrap reveal d1">
+      <table class="pruebas">
+        <thead>
+          <tr><th>#</th><th>Capas ocultas</th><th>Salida</th><th>Latente</th><th>Pérdida</th><th>loss</th><th>val_loss</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>1</td><td>relu (17)</td><td>sigmoid</td><td>relu</td><td>binary_crossentropy</td><td>0.1499</td><td>2.6223</td></tr>
+          <tr><td>2</td><td>relu (17)</td><td>sigmoid</td><td>linear</td><td>binary_crossentropy</td><td>0.0589</td><td>1.9343</td></tr>
+          <tr class="best"><td>3 <span class="tbl-badge">elegida</span></td><td>relu (17)</td><td>tanh</td><td>linear</td><td>mse</td><td>0.0733</td><td><b>0.4884</b></td></tr>
+          <tr><td>4</td><td>relu (24, 12)</td><td>tanh</td><td>linear</td><td>mse</td><td>0.0731</td><td>0.9571</td></tr>
+          <tr><td>5</td><td>relu (24, 12) · <b>denoising</b></td><td>tanh</td><td>linear</td><td>mse</td><td>0.1427</td><td>0.9485</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="reveal" style="margin-top:14px;color:var(--ink-soft);max-width:74ch">
+      <b>Qué aprendimos de la tabla:</b> con <b>sigmoid + binary_crossentropy</b> (pruebas 1 y 2) el error sobre datos nuevos quedaba altísimo (val_loss &gt; 1.9). Al pasar a <b>tanh + MSE y latente lineal</b> (prueba 3) el <code>val_loss</code> se desplomó a <b>0.49</b>: fue la mejor de todas. Sumar una segunda capa (prueba 4) no mejoró, así que nos quedamos con la arquitectura más simple que funcionaba. <span class="hl">La prueba 5 es la base del Punto 2 (ruido).</span>
+    </p>
+  </div>
+</section>
+
+<!-- ============ PUNTO 1 — CARACTERES ============ -->
+<section id="p1">
+  <span class="secnum">02</span>
+  <div class="wrap">
+    <div class="ex-head reveal">
+      <div style="display:flex;align-items:flex-end;gap:20px">
+        <div class="ex-num" style="color:var(--blue)">1</div>
+        <div>
+          <span class="ex-pill" style="background:var(--blue)">Autoencoder de caracteres</span>
+          <h2 class="ex-title" style="margin-top:10px">Comprimir 35 píxeles a 2 números… y volver</h2>
+        </div>
+      </div>
+    </div>
+
+    <p class="reveal d1" style="max-width:66ch;color:var(--ink-soft);margin-bottom:30px">
+      Entrenamos el autoencoder con los <b>32 caracteres</b> del archivo <code>caracteres.h</code> (el set Font1: espacio, símbolos y dígitos 0–9), cada uno una imagen binaria de <b>7×5</b>. La red tiene que aprender a reconstruir cada carácter pasando por el cuello de 2 dimensiones.
+    </p>
+
+    <!-- reconstrucción: pixel grids -->
+    <div class="panel reveal d1">
+      <h3>Reconstrucción <span class="tg">resultado</span></h3>
+      <p style="color:var(--ink-soft);max-width:78ch">Después de entrenar, le pedimos a la red que reconstruya cada carácter. La copia <b>x̂</b> sale prácticamente idéntica al original <b>x</b>: la red logró comprimir a 2 números y recuperar la imagen casi sin perder nada.</p>
+      <div class="pix-row" id="pixDemo"></div>
+      <p style="color:var(--ink-faint);font-family:var(--font-mono);font-size:.72rem;text-align:center;margin:18px 0 0">Original (negro) vs. reconstrucción de la red. Ejemplos sacados de la verificación que imprime <code>part_1.py</code>.</p>
+    </div>
+
+    <!-- espacio latente -->
+    <div class="minihead reveal" style="margin-top:50px">El gráfico que pide la consigna: los datos en el espacio latente</div>
+    <div class="grid-2" style="align-items:start;margin-top:14px">
+      <div class="figcard reveal d1">
+        <img src="tp3_latente.png" alt="Gráfico 2D del espacio latente: cada carácter ubicado por sus coordenadas z1, z2" loading="lazy" />
+        <div class="cap">Cada punto es un carácter, ubicado por sus 2 coordenadas latentes (z₁, z₂).</div>
+      </div>
+      <div class="reveal d2">
+        <div class="panel">
+          <h3>Cómo se ordenó el espacio <span class="tg">lectura</span></h3>
+          <p style="color:var(--ink-soft)">Pasamos cada carácter por el codificador y dibujamos sus 2 coordenadas. Lo interesante es que la red, <b>sin que se lo pidamos</b>, agrupa los caracteres parecidos cerca entre sí:</p>
+          <ul style="margin:0;padding-left:1.1em;color:var(--ink-soft)">
+            <li>Los <b>dígitos</b> (0–9) quedan repartidos hacia la izquierda y los bordes, bien separados.</li>
+            <li>Los <b>símbolos chiquitos</b> (<code>. , ; : + -</code>) se amontonan en el centro, porque comparten casi todos los píxeles en blanco.</li>
+          </ul>
+          <p style="color:var(--ink-soft);margin-top:.8em">Que el espacio quede así de ordenado es la señal de que la red entendió la <b>estructura</b> de los datos, no que los memorizó sueltos.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- generar caracter nuevo -->
+    <div class="minihead reveal" style="margin-top:50px">Lo otro que pide la consigna: generar un carácter que NO está en el entrenamiento</div>
+    <p class="reveal d1" style="max-width:74ch;color:var(--ink-soft);margin-bottom:18px">
+      Como el espacio latente es <b>continuo</b>, entre dos caracteres conocidos hay infinitos puntos válidos. Si elegimos un punto <b>cualquiera</b> (o uno justo en el medio de dos) y lo metemos sólo en el <b>decodificador</b>, la red <b>genera</b> un carácter que nunca vio. Eso es crear algo nuevo a partir de lo aprendido.
+    </p>
+    <div class="fig2">
+      <div class="figcard reveal d1">
+        <img src="tp3_nuevo.png" alt="Carácter generado en el punto z=(0,0)" loading="lazy" style="max-width:230px;margin:0 auto" />
+        <div class="cap">Punto elegido a mano: <b>z = (0, 0)</b>. El decodificador inventa un patrón nuevo.</div>
+      </div>
+      <div class="figcard reveal d2">
+        <img src="tp3_nuevo_mezcla.png" alt="Carácter generado en el punto intermedio entre dos caracteres" loading="lazy" style="max-width:230px;margin:0 auto" />
+        <div class="cap">Punto <b>intermedio</b> entre dos caracteres del set: <b>z ≈ (8.98, 17.82)</b>. Una “mezcla” de los dos.</div>
+      </div>
+    </div>
+
+    <div class="panel reveal" style="margin-top:30px;border-top:4px solid var(--blue)">
+      <h3>Lo que resolvimos en el Punto 1 <span class="tg">resumen</span></h3>
+      <p style="color:var(--ink-soft);max-width:78ch">Armamos un codificador y un decodificador con cuello de botella de <b>2D</b>, los entrenamos sobre los 32 caracteres y la red reconstruye casi perfecto. Graficamos los datos en el <b>espacio latente</b> (quedan ordenados por parecido) y mostramos que el decodificador puede <b>generar caracteres nuevos</b> eligiendo puntos del plano que no corresponden a ningún carácter original. <span class="hl">Los 4 sub-ítems de la consigna, cubiertos.</span></p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ PUNTO 2 — RUIDO ============ -->
+<section id="p2" style="background:var(--paper-2)">
+  <span class="secnum">03</span>
+  <div class="wrap">
+    <div class="ex-head reveal">
+      <div style="display:flex;align-items:flex-end;gap:20px">
+        <div class="ex-num" style="color:var(--amber)">2</div>
+        <div>
+          <span class="ex-pill" style="background:var(--amber)">Eliminador de ruido · denoising</span>
+          <h2 class="ex-title" style="margin-top:10px">Que aprenda a limpiar, no sólo a copiar</h2>
+        </div>
+      </div>
+    </div>
+
+    <p class="reveal d1" style="max-width:66ch;color:var(--ink-soft);margin-bottom:30px">
+      Sobre el mismo conjunto de caracteres armamos una variante que funcione como <b>eliminador de ruido</b>. La idea es simple pero potente: en vez de mostrarle a la red el carácter limpio en la entrada, le mostramos el carácter <b>ensuciado</b>… pero le pedimos que devuelva el <b>limpio</b>.
+    </p>
+
+    <div class="exgrid">
+      <div class="panel reveal d1">
+        <h3>Qué arquitectura usamos y por qué <span class="tg">decisión</span></h3>
+        <p style="color:var(--ink-soft)">Mantuvimos la misma forma de reloj de arena, pero con un poco más de capacidad: <b>2 capas ocultas (24 y 12)</b> en cada mitad, salida <b>tanh</b> y pérdida <b>MSE</b>.</p>
+        <ul>
+          <li><b>Por qué más capas:</b> limpiar ruido es más difícil que copiar. La red necesita un poco más de capacidad para “entender” cómo es el carácter de verdad y descartar los píxeles sueltos.</li>
+          <li><b>El truco del entrenamiento:</b> entrada = carácter <b>con ruido</b>, salida deseada = carácter <b>limpio</b>. Así la red no puede limitarse a copiar: tiene que aprender a reparar.</li>
+        </ul>
+        <div class="spec" style="margin-top:14px">
+          <div><span>capas</span><b>24 · 12</b></div>
+          <div><span>entrada</span><b>con ruido</b></div>
+          <div><span>objetivo</span><b>limpio</b></div>
+          <div><span>val_loss</span><b>0.9485</b></div>
+        </div>
+      </div>
+
+      <div class="reveal d2">
+        <div class="code">
+          <div class="bar"><i style="background:#ff5f56"></i><i style="background:#ffbd2e"></i><i style="background:#27c93f"></i><span class="t">utils/helpers.py · agregar_ruido</span></div>
+          <pre><code><span class="ln"><span class="tok-c"># da vuelta cada píxel con probabilidad "prob"</span></span>
+<span class="ln"><span class="tok-k">def</span> <span class="tok-f">agregar_ruido</span>(bits, prob=<span class="tok-n">0.02</span>):</span>
+<span class="ln">    ruidoso = []</span>
+<span class="ln">    <span class="tok-k">for</span> i <span class="tok-k">in</span> <span class="tok-f">range</span>(<span class="tok-f">len</span>(bits)):</span>
+<span class="ln">        <span class="tok-k">if</span> random() &lt; prob:</span>
+<span class="ln">            ruidoso.<span class="tok-f">append</span>(<span class="tok-n">1</span> - bits[i])  <span class="tok-c"># lo invierte</span></span>
+<span class="ln">        <span class="tok-k">else</span>:</span>
+<span class="ln">            ruidoso.<span class="tok-f">append</span>(bits[i])       <span class="tok-c"># lo deja igual</span></span>
+<span class="ln">    <span class="tok-k">return</span> ruidoso</span>
+<span class="ln"></span>
+<span class="ln"><span class="tok-c"># subiendo "prob" ensuciamos más la entrada</span></span>
+<span class="ln"><span class="tok-c"># y probamos cuánto aguanta limpiando la red</span></span></code></pre>
+        </div>
+        <div class="codenote"><span class="b">i</span><span>El nivel de ruido es la <b>probabilidad</b> de que cada píxel se dé vuelta. Con valores bajos la red limpia muy bien; a medida que subimos el ruido, cada vez le cuesta más reconocer el carácter original.</span></div>
+      </div>
+    </div>
+
+    <div class="panel reveal" style="margin-top:30px;border-top:4px solid var(--amber)">
+      <h3>Qué observamos <span class="tg">resultados</span></h3>
+      <p style="color:var(--ink-soft);max-width:80ch">Con <b>poco ruido</b>, la red reconstruye el carácter limpio casi perfecto: aprendió a ignorar los píxeles equivocados. A <b>más ruido</b>, el <code>val_loss</code> sube (≈0.95 frente a 0.49 del autoencoder común): el problema es más difícil y empiezan a aparecer errores en caracteres muy parecidos entre sí. <span class="hl">La conclusión es clara: el denoising autoencoder no memoriza píxel por píxel, aprende la "idea" del carácter, y por eso puede reconstruirlo aunque la entrada venga sucia.</span></p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ PUNTO 3 — GENERAR ============ -->
+<section id="p3">
+  <span class="secnum">04</span>
+  <div class="wrap">
+    <div class="ex-head reveal">
+      <div style="display:flex;align-items:flex-end;gap:20px">
+        <div class="ex-num" style="color:var(--violet)">3</div>
+        <div>
+          <span class="ex-pill" style="background:var(--violet)">Generar nuevas muestras</span>
+          <h2 class="ex-title" style="margin-top:10px">Nuestro escenario libre: Pokémon</h2>
+        </div>
+      </div>
+    </div>
+
+    <p class="reveal d1" style="max-width:68ch;color:var(--ink-soft);margin-bottom:30px">
+      Para el punto libre elegimos un problema más divertido: imágenes de <b>Pokémon</b>. La idea es la misma del autoencoder, pero llevada a imágenes de verdad — comprimir una imagen a unos pocos números y reconstruirla, para después poder generar variaciones.
+    </p>
+
+    <div class="exgrid">
+      <div class="panel reveal d1">
+        <h3>Qué hicimos <span class="tg">escenario</span></h3>
+        <ul>
+          <li>Bajamos los sprites de los <b>151 Pokémon</b> de Kanto desde la PokéAPI.</li>
+          <li>Los pasamos a escala de grises de <b>100×100</b> (= 10.000 píxeles de entrada).</li>
+          <li>Armamos un autoencoder más grande con cuello de botella de <b>64 dimensiones</b>, capas de 512 y 128, salida <b>sigmoid</b> y pérdida <b>MSE</b>.</li>
+          <li>Entrenamos 100 épocas y reconstruimos un Pokémon al azar.</li>
+        </ul>
+        <div class="spec" style="margin-top:14px">
+          <div><span>imágenes</span><b>151</b></div>
+          <div><span>entrada</span><b>100×100</b></div>
+          <div><span>latente</span><b>64</b></div>
+          <div><span>épocas</span><b>100</b></div>
+        </div>
+      </div>
+
+      <div class="figcard reveal d2">
+        <img src="tp3_poke_100x100.png" alt="Original vs reconstrucción de un Pokémon de 100x100" loading="lazy" />
+        <div class="cap">Original (izq.) vs. reconstrucción (der.). Se recupera la <b>silueta</b> general aunque pierde el detalle fino.</div>
+      </div>
+    </div>
+
+    <div class="panel reveal" style="margin-top:30px;border-top:4px solid var(--violet)">
+      <h3>Qué muestra este escenario <span class="tg">conclusión del punto</span></h3>
+      <p style="color:var(--ink-soft);max-width:80ch">Pasar de 10.000 píxeles a sólo <b>64 números</b> y volver a una imagen reconocible demuestra el poder de la compresión latente. La reconstrucción sale <b>borrosa</b> porque 64 dimensiones para 151 Pokémon distintos es un cuello muy apretado y con sólo 100 épocas — pero la <b>silueta</b> está. Moviéndonos por ese espacio latente de 64D podríamos generar <b>Pokémon "nuevos"</b>, mezcla de los que la red aprendió, igual que mezclábamos caracteres en el Punto 1. <span class="hl">El mismo principio, a otra escala.</span></p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ DIFICULTADES ============ -->
+<section id="dificultades" style="background:var(--paper-2)">
+  <span class="secnum">05</span>
+  <div class="wrap">
+    <div class="eyebrow reveal">Dificultades · lo que nos costó</div>
+    <h2 class="reveal d1" style="font-size:clamp(2rem,5vw,3.2rem);max-width:18ch">Las trabas que aparecieron en el camino</h2>
+    <div class="concl" style="margin-top:40px">
+      <div class="ccard reveal" style="border-top-color:var(--red)"><div class="ic">!</div><h4>La elección de la activación</h4><p>Con sigmoid + binary_crossentropy el error sobre datos nuevos era altísimo (val_loss &gt; 1.9). Recién con tanh + MSE + latente lineal la red empezó a converger bien.</p></div>
+      <div class="ccard reveal d1" style="border-top-color:var(--amber)"><div class="ic">⌗</div><h4>Escalar los datos</h4><p>Como la salida es tanh (−1 a 1), hubo que escalar las imágenes de {0,1} a {−1,1} y ajustar el umbral a 0.0 para volver a blanco y negro.</p></div>
+      <div class="ccard reveal d2" style="border-top-color:var(--teal)"><div class="ic">◧</div><h4>El cuello de 2D es muy chico</h4><p>Comprimir a sólo 2 números pierde información: símbolos muy parecidos caen casi en el mismo punto del plano y a veces se confunden.</p></div>
+      <div class="ccard reveal d3" style="border-top-color:var(--violet)"><div class="ic">▦</div><h4>Pokémon en alta resolución</h4><p>10.000 píxeles de entrada pesan mucho: hubo que sumar capas y BatchNormalization, y aun así la reconstrucción queda borrosa con pocas épocas.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ AYUDA MEMORIA ============ -->
+<section id="ayuda">
+  <span class="secnum">06</span>
+  <div class="wrap">
+    <div class="eyebrow reveal">Ayuda memoria · para no quedarte trabado</div>
+    <h2 class="reveal d1" style="font-size:clamp(2rem,5vw,3.2rem);max-width:20ch">Lo que hay que tener claro (en palabras fáciles)</h2>
+    <p class="reveal d2" style="max-width:60ch;color:var(--ink-soft);margin-top:18px">Si te perdés con alguna palabra, acá está cada una explicada como si se la contaras a un amigo que nunca escuchó del tema.</p>
+
+    <div class="minihead reveal" style="margin-top:40px">Cada palabra, en una frase</div>
+    <div class="glossary">
+      <div class="gterm reveal"><b>Autocodificador</b><p>Red que aprende a reconstruir su propia entrada pasando por un cuello de botella.</p></div>
+      <div class="gterm reveal d1"><b>Codificador (encoder)</b><p>La mitad que comprime el dato a pocos números.</p></div>
+      <div class="gterm reveal d2"><b>Decodificador (decoder)</b><p>La mitad que reconstruye el dato a partir de esos pocos números.</p></div>
+      <div class="gterm reveal"><b>Espacio latente</b><p>La versión comprimida del dato. Acá son 2 números (z₁, z₂) que se pueden dibujar.</p></div>
+      <div class="gterm reveal d1"><b>Cuello de botella</b><p>La capa más chica del medio. Obliga a la red a quedarse sólo con lo importante.</p></div>
+      <div class="gterm reveal d2"><b>Reconstrucción (x̂)</b><p>La copia que devuelve la red. El objetivo es que se parezca al original.</p></div>
+      <div class="gterm reveal"><b>Error de reconstrucción</b><p>Cuánto difiere la copia del original. Se mide con MSE y se busca minimizarlo.</p></div>
+      <div class="gterm reveal d1"><b>MSE</b><p>Error cuadrático medio: promedio de las diferencias al cuadrado entre x y x̂.</p></div>
+      <div class="gterm reveal d2"><b>Denoising</b><p>Variante que entrena con la entrada sucia y la salida limpia: aprende a quitar ruido.</p></div>
+      <div class="gterm reveal"><b>val_loss</b><p>El error sobre datos que la red NO usó para entrenar. Mide si generaliza.</p></div>
+      <div class="gterm reveal d1"><b>Activación lineal / tanh</b><p>tanh aplasta la salida a (−1, 1); lineal la deja pasar tal cual. Las usamos en latente y salida.</p></div>
+      <div class="gterm reveal d2"><b>Generar muestras</b><p>Elegir un punto del espacio latente que no es de ningún dato y decodificarlo: sale algo nuevo.</p></div>
+    </div>
+
+    <div class="minihead reveal" style="margin-top:50px">Si el profe te pregunta…</div>
+    <div class="simple" style="grid-template-columns:1fr 1fr">
+      <div class="scard reveal" style="border-top:4px solid var(--blue)">
+        <h4>¿Para qué sirve el cuello de botella?</h4>
+        <p style="color:var(--ink-soft)">Para <b>forzar a la red a comprimir</b>. Si la capa del medio fuera igual de grande que la entrada, la red copiaría todo sin aprender nada. Al achicarla, tiene que descartar lo que sobra y quedarse con lo esencial.</p>
+      </div>
+      <div class="scard reveal d1" style="border-top:4px solid var(--teal)">
+        <h4>¿Cómo genera un carácter nuevo?</h4>
+        <p style="color:var(--ink-soft)">El espacio latente es <b>continuo</b>: entre dos caracteres hay infinitos puntos. Elegimos un punto que no es de ningún carácter (por ejemplo el del medio entre dos) y lo metemos sólo en el decodificador. Lo que sale es inédito.</p>
+      </div>
+      <div class="scard reveal" style="border-top:4px solid var(--amber)">
+        <h4>¿Qué diferencia hay con el denoising?</h4>
+        <p style="color:var(--ink-soft)">En el autoencoder común entrada y salida deseada son lo mismo. En el <b>denoising</b>, la entrada va <b>con ruido</b> pero la salida deseada es la <b>limpia</b>. Eso obliga a la red a aprender a reparar, no sólo a copiar.</p>
+      </div>
+      <div class="scard reveal d1" style="border-top:4px solid var(--violet)">
+        <h4>¿Por qué tanh + MSE y no sigmoid?</h4>
+        <p style="color:var(--ink-soft)">Lo probamos: con sigmoid + binary_crossentropy el <code>val_loss</code> quedaba arriba de 1.9. Con <b>tanh + MSE y latente lineal</b> bajó a 0.49. Fue una decisión empírica, mirando qué configuración reconstruía mejor.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CONCLUSIONES ============ -->
+<section id="conclusiones" style="background:var(--paper-2)">
+  <span class="secnum">07</span>
+  <div class="wrap">
+    <div class="eyebrow reveal">Conclusiones</div>
+    <h2 class="reveal d1" style="font-size:clamp(2rem,5vw,3.2rem);max-width:16ch;margin-bottom:40px">Lo que aprendimos del trabajo</h2>
+    <div class="concl">
+      <div class="ccard reveal" style="border-top-color:var(--blue)"><div class="ic">⊃</div><h4>Comprimir es aprender</h4><p>Pasar de 35 píxeles a 2 números y volver obliga a la red a quedarse con lo esencial. El cuello de botella es lo que hace que aprenda estructura, no copia.</p></div>
+      <div class="ccard reveal d1" style="border-top-color:var(--teal)"><div class="ic">◉</div><h4>El espacio latente tiene sentido</h4><p>Sin pedírselo, la red ubicó los caracteres parecidos cerca entre sí. Ese orden es la prueba de que entendió los datos.</p></div>
+      <div class="ccard reveal d2" style="border-top-color:var(--violet)"><div class="ic">✦</div><h4>Se puede generar lo nuevo</h4><p>Decodificando puntos que no son de ningún dato, la red crea caracteres (y Pokémon) inéditos. Mismo principio a cualquier escala.</p></div>
+      <div class="ccard reveal d3" style="border-top-color:var(--amber)"><div class="ic">~</div><h4>Y también limpiar ruido</h4><p>Entrenando con entradas sucias y salidas limpias, el autoencoder aprende a reparar. La activación y la pérdida correctas fueron clave para que todo convergiera.</p></div>
+    </div>
+
+    <div class="eyebrow reveal" style="margin-top:70px">Mini glosario</div>
+    <div class="glossary">
+      <div class="gterm reveal"><b>Encoder / Decoder</b><p>Las dos mitades: una comprime, la otra reconstruye.</p></div>
+      <div class="gterm reveal d1"><b>Espacio latente (z)</b><p>La representación comprimida del dato.</p></div>
+      <div class="gterm reveal d2"><b>Cuello de botella</b><p>La capa más chica que fuerza la compresión.</p></div>
+      <div class="gterm reveal"><b>Error de reconstrucción</b><p>Diferencia entre el original y la copia (MSE).</p></div>
+      <div class="gterm reveal d1"><b>Denoising</b><p>Variante que aprende a limpiar ruido.</p></div>
+      <div class="gterm reveal d2"><b>Generar muestras</b><p>Decodificar puntos nuevos del latente.</p></div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="big">¡Gracias!</div>
+  Autocodificadores · TP3 · Fundamentos de Redes Neuronales · UNAHUR <br>
+  <span style="opacity:.7">Implementación en Python (Keras) · <code>tp_3/part_1.py</code> · <code>part_2.py</code> · <code>addons/functions.py</code></span>
+</footer>
+
+<script>
+/* ================= reveal on scroll ================= */
+const io = new IntersectionObserver((entries)=>{
+  entries.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target);} });
+},{threshold:.12});
+document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+
+/* nav hide on scroll down */
+let lastY=0;const nav=document.getElementById('nav');
+addEventListener('scroll',()=>{const y=scrollY;nav.style.transform=(y>lastY&&y>140)?'translateY(-110%)':'none';lastY=y;});
+
+/* ================= progreso + scrollspy + recordatorio + parallax ================= */
+const prog=document.getElementById('progress');
+const secnums=[...document.querySelectorAll('.secnum')];
+addEventListener('scroll',()=>{
+  const h=document.documentElement;
+  const sc=h.scrollTop/((h.scrollHeight-h.clientHeight)||1);
+  if(prog)prog.style.width=(Math.min(sc,1)*100)+'%';
+  secnums.forEach(s=>{const r=s.getBoundingClientRect();s.style.transform=`translateY(${(r.top-innerHeight/2)*-0.05}px)`;});
+},{passive:true});
+
+const cues={
+  hero:['Inicio','TP3: el autocodificador, una red que se reconstruye pasando por un cuello de botella.'],
+  metodo:['Qué es','Codificador comprime → espacio latente → decodificador reconstruye. Aprende minimizando el error de reconstrucción.'],
+  arq:['Arquitectura','35 → 17 → 2 → 17 → 35. Probamos 5 configuraciones; tanh + MSE + latente lineal fue la mejor (val_loss 0.49).'],
+  p1:['1 · Caracteres','Comprime 35 píxeles a 2, reconstruye casi perfecto, ordena el espacio latente y genera caracteres nuevos.'],
+  p2:['2 · Ruido','Denoising: entrada sucia, salida limpia. Aprende a reparar, no sólo a copiar.'],
+  p3:['3 · Generar','Escenario libre con Pokémon 100×100 y latente de 64: recupera la silueta y permite generar variaciones.'],
+  dificultades:['Dificultades','La activación, el escalado, el cuello de 2D chico y la alta resolución de los Pokémon.'],
+  ayuda:['Ayuda memoria','Acá tenés cada término fácil y las preguntas típicas del profe.'],
+  conclusiones:['Conclusiones','Comprimir es aprender, el latente tiene sentido, se puede generar lo nuevo y también limpiar ruido.']
+};
+const recEl=document.getElementById('recordatorio');
+const recTitle=recEl.querySelector('.rtitle');
+const recBody=recEl.querySelector('.rbody');
+const navLinks=[...document.querySelectorAll('nav ul a')];
+const spy=new IntersectionObserver((es)=>{es.forEach(e=>{if(e.isIntersecting){
+  const id=e.target.id;
+  navLinks.forEach(a=>a.classList.toggle('active',a.getAttribute('href')==='#'+id));
+  if(cues[id]){recTitle.textContent=cues[id][0];recBody.textContent=cues[id][1];}
+}});},{rootMargin:'-45% 0px -45% 0px'});
+document.querySelectorAll('section').forEach(s=>spy.observe(s));
+
+const recToggle=document.getElementById('recToggle');
+let recManual=false,recAuto=false;
+function showRec(v){recEl.classList.toggle('show',v);recToggle.style.display=v?'none':'flex';}
+document.getElementById('recClose').addEventListener('click',()=>{recManual=true;showRec(false);});
+recToggle.addEventListener('click',()=>{recManual=false;showRec(true);});
+addEventListener('scroll',()=>{if(!recAuto&&!recManual&&scrollY>320){recAuto=true;showRec(true);}},{passive:true});
+
+/* ================= autoencoder animado (método) ================= */
+const NS='http://www.w3.org/2000/svg';
+const nsvg=document.getElementById('aenet');
+const LAYERS=[5,3,1,3,5];           // 35->17->2->17->35 (representado)
+const COLX=[55,150,240,330,425];
+const layerNodes=[];
+(function buildAE(){
+  const H=320, top=40, bot=280;
+  // posiciones
+  LAYERS.forEach((n,li)=>{
+    const arr=[];
+    for(let i=0;i<n;i++){
+      const y = n===1 ? H/2 : top + i*((bot-top)/(n-1));
+      arr.push({x:COLX[li],y});
+    }
+    layerNodes.push(arr);
+  });
+  // edges
+  for(let li=0;li<LAYERS.length-1;li++){
+    layerNodes[li].forEach(a=>layerNodes[li+1].forEach(b=>{
+      const l=document.createElementNS(NS,'line');
+      l.setAttribute('x1',a.x);l.setAttribute('y1',a.y);
+      l.setAttribute('x2',b.x);l.setAttribute('y2',b.y);
+      l.setAttribute('class','edge');l.dataset.li=li;nsvg.appendChild(l);
+    }));
+  }
+  // nodes
+  layerNodes.forEach((arr,li)=>{
+    arr.forEach(p=>{
+      const c=document.createElementNS(NS,'circle');
+      c.setAttribute('cx',p.x);c.setAttribute('cy',p.y);
+      c.setAttribute('r',li===2?13:9);
+      c.setAttribute('class','node');c.dataset.li=li;nsvg.appendChild(c);
+    });
+  });
+  // labels
+  const labs=[['x · entrada',55,'#33405a'],['encoder',150,'#2347d9'],['z · latente',240,'#16967a'],['decoder',330,'#8b2fb0'],['x̂ · copia',425,'#33405a']];
+  labs.forEach(([t,x,col])=>{
+    const tx=document.createElementNS(NS,'text');
+    tx.setAttribute('x',x);tx.setAttribute('y',304);tx.setAttribute('fill',col);
+    tx.setAttribute('font-size','10');tx.setAttribute('text-anchor','middle');tx.textContent=t;nsvg.appendChild(tx);
+  });
+})();
+const stateEl=document.getElementById('netState');
+let nbusy=false;
+function nsleep(ms){return new Promise(r=>setTimeout(r,ms));}
+function clearAE(){
+  nsvg.querySelectorAll('.edge').forEach(e=>e.classList.remove('lit-fwd'));
+  nsvg.querySelectorAll('.node').forEach(n=>n.classList.remove('lit-fwd','lit-enc','lit-lat'));
+}
+async function aeForward(){
+  if(nbusy)return;nbusy=true;
+  clearAE();
+  const msgs=['entra x ▶','codifica…','z (comprimido)','decodifica…','copia x̂ ✓'];
+  const cls=['lit-enc','lit-enc','lit-lat','lit-fwd','lit-fwd'];
+  const colors=['var(--blue)','var(--blue)','var(--teal)','var(--violet)','var(--violet)'];
+  for(let li=0;li<LAYERS.length;li++){
+    stateEl.textContent=msgs[li];stateEl.style.color=colors[li];
+    nsvg.querySelectorAll(`.node[data-li="${li}"]`).forEach(n=>n.classList.add(cls[li]));
+    if(li>0)nsvg.querySelectorAll(`.edge[data-li="${li-1}"]`).forEach(e=>e.classList.add('lit-fwd'));
+    await nsleep(560);
+  }
+  stateEl.textContent='reconstruido ✓';stateEl.style.color='var(--teal)';
+  nbusy=false;
+}
+document.getElementById('btnFwd').addEventListener('click',aeForward);
+document.getElementById('btnReset').addEventListener('click',()=>{
+  if(nbusy)return;clearAE();stateEl.textContent='listo';stateEl.style.color='var(--ink-faint)';
+});
+const methodIO=new IntersectionObserver((es)=>{es.forEach(e=>{if(e.isIntersecting){aeForward();methodIO.disconnect();}});},{threshold:.4});
+methodIO.observe(nsvg);
+
+/* ================= grillas de píxeles (Punto 1) ================= */
+// caracteres 7x5 sacados de Font1 (hex por fila, 5 bits cada una)
+const CHARS={
+  '#':[0x0a,0x0a,0x1f,0x0a,0x1f,0x0a,0x0a],
+  '$':[0x04,0x0f,0x14,0x0e,0x05,0x1e,0x04],
+  '2':[0x0e,0x11,0x01,0x02,0x04,0x08,0x1f],
+  '8':[0x0e,0x11,0x11,0x0e,0x11,0x11,0x0e]
+};
+function buildPixGrid(rows,size){
+  const cell=size, w=5*cell, h=7*cell;
+  const svg=document.createElementNS(NS,'svg');
+  svg.setAttribute('class','pixgrid');
+  svg.setAttribute('viewBox',`0 0 ${w} ${h}`);
+  svg.setAttribute('width',w);svg.setAttribute('height',h);
+  for(let r=0;r<7;r++){
+    for(let c=0;c<5;c++){
+      const on=(rows[r]>>(4-c))&1;
+      const rect=document.createElementNS(NS,'rect');
+      rect.setAttribute('x',c*cell);rect.setAttribute('y',r*cell);
+      rect.setAttribute('width',cell-1);rect.setAttribute('height',cell-1);
+      rect.setAttribute('rx',1.5);
+      rect.setAttribute('class',on?'pix-on':'pix-off');
+      svg.appendChild(rect);
+    }
+  }
+  return svg;
+}
+(function renderPixDemo(){
+  const cont=document.getElementById('pixDemo');
+  Object.entries(CHARS).forEach(([ch,rows])=>{
+    const block=document.createElement('div');block.className='pix-block';
+    const cap=document.createElement('div');cap.className='cap';cap.textContent="'"+ch+"'";
+    const pair=document.createElement('div');
+    pair.style.display='flex';pair.style.gap='10px';pair.style.alignItems='center';
+    const o=buildPixGrid(rows,16);
+    const arrow=document.createElement('span');arrow.textContent='→';
+    arrow.style.color='var(--teal)';arrow.style.fontFamily='var(--font-mono)';
+    const r=buildPixGrid(rows,16); // reconstrucción ≈ idéntica
+    pair.appendChild(o);pair.appendChild(arrow);pair.appendChild(r);
+    block.appendChild(cap);block.appendChild(pair);
+    cont.appendChild(block);
+  });
+})();
+
+/* ================= hero background: autoencoder diamante ================= */
+const hn=document.getElementById('heroNet');
+(function heroNet(){
+  const L=[4,2,1,2,4];const w=1200,h=800;
+  const xs=[180,420,600,780,1020];
+  const pos=L.map((c,li)=>{const a=[];for(let i=0;i<c;i++){a.push({x:xs[li],y:c===1?h/2:240+i*((h-480)/(c-1))});}return a;});
+  let html='';
+  for(let li=0;li<L.length-1;li++)pos[li].forEach(a=>pos[li+1].forEach(b=>{
+    html+=`<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="#8b2fb0" stroke-width="1.4" opacity="0.12"/>`;}));
+  pos.flat().forEach((p,i)=>{html+=`<circle cx="${p.x}" cy="${p.y}" r="13" fill="#101a2e" opacity="0.16"><animate attributeName="opacity" values="0.1;0.45;0.1" dur="${3+i%3}s" repeatCount="indefinite" begin="${i*0.22}s"/></circle>`;});
+  hn.innerHTML=html;
+})();
+</script>
+</body>
+</html>
