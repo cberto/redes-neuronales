@@ -25,9 +25,11 @@ from tp_3.addons.functions import (
 def tp3():
     # --- CONFIGURACIÓN DE PRUEBA ---
     
-    # CONFIGURACIÓN PRUEBA 3 (LA MEJOR HASTA AHORA)
-    RECUPERAR_MODELO = True  # Cambiar a False para forzar un nuevo entrenamiento
+    print("\n" + "="*50)
+    print("INICIANDO TP3: AUTOENCODERS Y ESPACIO LATENTE")
+    print("="*50)
 
+    RECUPERAR_MODELO = True  # Cambiar a False para forzar un nuevo entrenamiento
     MODO_TANH = True
     output_act = "tanh" if MODO_TANH else "sigmoid"
     loss_func = "mse" if MODO_TANH else "binary_crossentropy"
@@ -87,67 +89,51 @@ def tp3():
         decoder.save(os.path.join(models_path, "decoder.keras"))
         print(f"\n[INFO] Modelos exportados exitosamente en: {models_path}")
 
-    predict_autoencoder = autoencoder.predict(plane_data)
+    # --- FASE DE ANÁLISIS Y GENERACIÓN ---
+    predict_autoencoder = autoencoder.predict(plane_data, verbose=0)
     
-    # encoder usa los datos originales como entrada
-    predict_encoder = encoder.predict(plane_data)
+    # 1. Calcular puntos de interés antes de graficar
+    punto_cero = [0.0, 0.0]
+    # Mezcla del primer y segundo carácter del dataset (índices 0 y 1)
+    mix_data = [3, 6]
+    print("\n[PROCESO] punto intermedio latente...")
+    for idx in mix_data:
+        vis_data = (plane_data[idx] > threshold).astype(int)
+        display_pattern(vis_data, label=y[idx])
+    medio = punto_intermedio(encoder, plane_data, mix_data[0], mix_data[1])
+    
+    # 2. Gráfico del espacio latente incluyendo los puntos nuevos
+    print("\n[PROCESO] Generando mapa del espacio latente...")
+    puntos_interes = [punto_cero, medio]
+    etiquetas_interes = ["Origen (0,0)", f"Mezcla ({mix_data[0]}-{mix_data[1]})"]
+    graficar_espacio_latente(encoder, plane_data, y, 
+                             puntos_extra=puntos_interes, 
+                             etiquetas_extra=etiquetas_interes)
 
-    # decoder usa los datos de encoder como datos de entrada
-    predict_decoder = decoder.predict(predict_encoder)
-
-    # Verificación visual de los resultados (Primeros 5 caracteres)
+    # 3. Verificación visual de Reconstrucción
     print("\n" + "="*40)
-    print("VERIFICACIÓN DE RECONSTRUCCIÓN")
+    print("RECONSTRUCCIÓN DE PATRONES")
     print("="*40)
-    
-    # Aplicamos el umbral correspondiente a la activación (0.0 para tanh)
+
     reconstruccion_binaria = (predict_autoencoder > threshold).astype(int)
+    original_binario = (plane_data > threshold).astype(int)
 
     for i in range(5):
-        print(f"\nCarácter: '{y[i]}'")
+        print(f"\nPatrón: '{y[i]}'")
         print("ORIGINAL:           RECONSTRUCCIÓN:")
-        orig = display_pattern(plane_data[i], rows=7, cols=5, return_str=True)
+        orig = display_pattern(original_binario[i], rows=7, cols=5, return_str=True)
         pred = display_pattern(reconstruccion_binaria[i], rows=7, cols=5, return_str=True)
         
         # Imprimir lado a lado
         for line_orig, line_pred in zip(orig.split('\n'), pred.split('\n')):
             print(f"{line_orig}       {line_pred}")
 
-    # --- PUNTO 3: gráfico del espacio latente en 2D ---
-    graficar_espacio_latente(encoder, plane_data, y)
-
-    # --- PUNTO 4: generar un carácter nuevo (no entrenado) ---
-    # Opción A: un punto cualquiera del plano elegido a mano
-    generar_caracter(decoder, [0.0, 0.0], threshold=threshold, path="./Documento/tp3_nuevo.png")
-
-    # Opción B: el punto que está justo entre dos caracteres conocidos
-    # (mezcla del primero y el segundo del dataset). Cambiá los índices
-    # para probar otras combinaciones.
-    medio = punto_intermedio(encoder, plane_data, 0, 1)
-    generar_caracter(decoder, medio, threshold=threshold, path="./Documento/tp3_nuevo_mezcla.png")
-
-    # --- PRUEBA EXTRA: POKÉMON ---
+    # 4. Generación de caracteres en los puntos identificados
     print("\n" + "="*40)
-    print("DETECCIÓN/RECONSTRUCCIÓN DE POKÉMON")
+    print("GENERACIÓN DE CARACTERES INÉDITOS")
     print("="*40)
-    
-    # 1: Bulbasaur, 4: Charmander, 7: Squirtle, 25: Pikachu
-    poke_ids = [1, 4, 7, 25]
-    poke_data, poke_names = fetch_pokemon_as_input(poke_ids)
-    
-    if MODO_TANH:
-        poke_data = poke_data * 2 - 1
-
-    poke_preds = autoencoder.predict(poke_data, verbose=0)
-    poke_bin = (poke_preds > threshold).astype(int)
-
-    for i in range(len(poke_names)):
-        print(f"\nPokémon ID {poke_ids[i]}:")
-        print("VISTA PREVIA (7x5):      RECONSTRUCCIÓN:")
-        p_orig = display_pattern((poke_data[i] > threshold).astype(int), return_str=True)
-        p_pred = display_pattern(poke_bin[i], return_str=True)
-        for lo, lp in zip(p_orig.split('\n'), p_pred.split('\n')):
-            print(f"{lo}                    {lp}")
+    generar_caracter(decoder, punto_cero, threshold=threshold, path="./Documento/tp3_nuevo.png")
+    generar_caracter(decoder, medio, threshold=threshold, path="./Documento/tp3_nuevo_mezcla.png")
 
     return {}
 

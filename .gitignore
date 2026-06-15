@@ -4,6 +4,7 @@ __pycache__/
 .venv/
 venv/
 .venv_linux/
+tp_3/models/autoencoder_pokemon.keras
 venv_linux/
 ENV/
 .env
