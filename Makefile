@@ -7,13 +7,17 @@ init: install-venv install-deps run
 
 PYTHON=venv_linux/bin/python
 PIP=venv_linux/bin/pip
+PYTHON_CMD := $(shell command -v python3.12 2>/dev/null || command -v python3.13 2>/dev/null || command -v python3.11 2>/dev/null || command -v python3 2>/dev/null)
 
 install-venv:
 	@if [ -d venv_linux ]; then \
 		echo "venv_linux ya existe."; \
+	elif [ -z "$(PYTHON_CMD)" ]; then \
+		echo "Error: no se encontró python3. Instalá Python 3.11+ (ej. brew install python@3.13)"; \
+		exit 1; \
 	else \
-		echo "Creando venv_linux con Python 3.12 (usando --copies)..."; \
-		python3.12 -m venv --copies venv_linux; \
+		echo "Creando venv_linux con $(PYTHON_CMD) (usando --copies)..."; \
+		"$(PYTHON_CMD)" -m venv --copies venv_linux; \
 		echo "Listo."; \
 	fi
 
