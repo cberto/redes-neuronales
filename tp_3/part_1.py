@@ -7,18 +7,17 @@ import numpy as np
 import keras
 import matplotlib.pyplot as plt
 from utils.helpers import (
-    cargar_txt, 
+    agregar_ruido, 
     read_json, 
     hex_a_binario, 
     prepare_items_for_keras, 
     display_pattern,
-    fetch_pokemon_as_input
 )
 from tp_3.addons.functions import (
     autoencoder_keras_instance,
     graficar_espacio_latente,
     generar_caracter,
-    punto_intermedio,
+    punto_intermedio
 )
 
 
@@ -32,6 +31,11 @@ def tp3():
     RECUPERAR_MODELO = True  # Cambiar a False para forzar un nuevo entrenamiento
     MODO_TANH = True
     output_act = "tanh" if MODO_TANH else "sigmoid"
+    # tanh produce valores en (-1, +1): MSE es agnóstico al rango.
+    # BCE requiere probabilidades (0, 1): incompatible con tanh.
+    # MSE devuelve un escalar >= 0. Adam usa ∂MSE/∂W (puede ser + o -)
+    # para actualizar cada W, permitiendo que W·h + b cubra (-∞, +∞)
+    # antes de que tanh lo comprima a (-1, +1).
     loss_func = "mse" if MODO_TANH else "binary_crossentropy"
     threshold = 0.0 if MODO_TANH else 0.5
     path_sal = "./Documento/tp3.json"
@@ -89,6 +93,7 @@ def tp3():
         decoder.save(os.path.join(models_path, "decoder.keras"))
         print(f"\n[INFO] Modelos exportados exitosamente en: {models_path}")
 
+
     # --- FASE DE ANÁLISIS Y GENERACIÓN ---
     predict_autoencoder = autoencoder.predict(plane_data, verbose=0)
     
@@ -135,6 +140,64 @@ def tp3():
     generar_caracter(decoder, punto_cero, threshold=threshold, path="./Documento/tp3_nuevo.png")
     generar_caracter(decoder, medio, threshold=threshold, path="./Documento/tp3_nuevo_mezcla.png")
 
+    niveles_ruido = {
+        "leve": 0.02,
+        "moderado": 0.10,
+        "severo": 0.25,
+        "extremo": 0.50,
+    }
+
+
+    for nombre, prob in niveles_ruido.items():
+        datos_ruidosos = []
+        for patron in plane_data:
+            patron_ruidoso = agregar_ruido(patron, prob=prob)
+            datos_ruidosos.append(patron_ruidoso)
+        datos_ruidosos = np.array(datos_ruidosos, dtype='float32')
+
+
+        reconstruido = autoencoder.predict(datos_ruidosos, verbose=0)
+
+        # se pasan valores a 0(-1 para tanh) y 1, segun el threshold
+        ruidoso_bin = (datos_ruidosos > threshold).astype(int)
+        reconstruido_bin = (reconstruido   > threshold).astype(int)
+        
+        # cuántos bits difieren entre ruidoso y original (cuánto ruido entró)
+        bits_corrompidos = 0
+        for i in range(len(original_binario)):
+            for j in range(len(original_binario[i])):
+                if ruidoso_bin[i][j] != original_binario[i][j]:
+                    bits_corrompidos += 1
+        total_bits = len(original_binario) * len(original_binario[0])
+        tasa_ruido = bits_corrompidos / total_bits
+
+        # cuántos bits difieren entre reconstruido y original (error residual)
+        bits_error = 0
+        for i in range(len(original_binario)):
+            for j in range(len(original_binario[i])):
+                if reconstruido_bin[i][j] != original_binario[i][j]:
+                    bits_error += 1
+        tasa_error = bits_error / total_bits
+
+        print(f"\n[{nombre.upper():10s}] prob={prob}")
+        print(f"  Ruido introducido : {tasa_ruido:.3f} ({bits_corrompidos}/{total_bits} bits)")
+        print(f"  Error residual    : {tasa_error:.3f} ({bits_error}/{total_bits} bits)")
+
+
+        IDX_EJEMPLO = 1
+        print(f"\n  Ejemplo con '{y[IDX_EJEMPLO]}':")
+        print(f"  {'ORIGINAL':<13}  {'RUIDOSO':<13}  RECONSTRUIDO")
+
+        orig_lines  = display_pattern(original_binario[IDX_EJEMPLO],  rows=7, cols=5, return_str=True).split('\n')
+        ruid_lines  = display_pattern(ruidoso_bin[IDX_EJEMPLO],       rows=7, cols=5, return_str=True).split('\n')
+        recon_lines = display_pattern(reconstruido_bin[IDX_EJEMPLO],  rows=7, cols=5, return_str=True).split('\n')
+
+        cantidad = min(len(orig_lines), len(ruid_lines), len(recon_lines))
+        for i in range(cantidad):
+            lo   = orig_lines[i]  if i < len(orig_lines)  else ""
+            lr   = ruid_lines[i]  if i < len(ruid_lines)  else ""
+            lrec = recon_lines[i] if i < len(recon_lines) else ""
+            print(f"  {lo:<13}  {lr:<13}  {lrec}")
     return {}
 
 

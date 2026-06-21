@@ -208,3 +208,4 @@ def punto_intermedio(encoder, plane_data, idx_a, idx_b):
     coords = encoder.predict(plane_data, verbose=0)
     medio = (coords[idx_a] + coords[idx_b]) / 2.0
     return medio.tolist()
+

@@ -536,18 +536,19 @@ def outputs_multicapa(size, max=1, min=-1):
 
 
 def agregar_ruido(bits, prob=0.02):    
-    bits = np.asarray(bits)
+    bits = np.asarray(bits).copy()
     #[1, 0, 1, 0]
     random_vals = np.random.random(bits.shape) #valores aleatoreos del arreglo
     #[0.5, 0.01, 0.01, 0.2]
     ruidoso = []
     for i in range(len(bits)):
         if random_vals[i] < prob:
-            ruidoso.append(1 - bits[i]) 
+            ruidoso.append(-bits[i])
         else:
             ruidoso.append(bits[i]) 
     #[1, 1, 0, 0]        
-    return ruidoso
+    return np.array(ruidoso, dtype='float32')
+
 
 def read_json(file_path, encoding="utf-8"):
     try:
@@ -593,14 +594,11 @@ def prepare_items_for_keras(input_list):
     return matrix
 
 def display_pattern(bits, label="", rows=7, cols=5, return_str=False):
-    """Muestra un vector de bits en formato de rejilla para verificación visual."""
     output = []
     if label:
-        output.append(f"\nPatrón para: '{label}'")
+        output.append(f"Patrón para: '{label}'")  # sin \n adelante
     for i in range(rows):
-        # Extrae los 5 bits que corresponden a la fila actual
         fila = bits[i * cols : (i + 1) * cols]
-        # Convierte 1 en un bloque sólido y 0 en espacio vacío
         output.append("".join(["█" if b == 1 else " " for b in fila]))
     
     if return_str:
