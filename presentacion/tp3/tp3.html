@@ -330,7 +330,7 @@ nav ul a.active::after{width:100%}
     <div class="hero-tag reveal">
       <span>Fundamentos de Redes Neuronales</span>
       <span>·</span>
-      <span><b>UNAHUR</b> — Tec. en Inteligencia Artificial</span>
+      <span><b>UNAHUR</b> — Lic. en Informática</span>
     </div>
     <h1 class="reveal d1">Auto<span class="ital">codificadores</span></h1>
     <p class="hero-sub reveal d2">Una red que aprende a copiarse a sí misma, pasando por un cuello de botella — y de ahí sale algo nuevo. Los 3 puntos del TP3, paso a paso.</p>
@@ -462,10 +462,16 @@ nav ul a.active::after{width:100%}
         <h3>Cómo está armada <span class="tg">capas</span></h3>
         <ul>
           <li><b style="color:var(--blue)">Codificador:</b> entrada de 35 → capa densa de <code>17</code> (ReLU) → capa latente de <code>2</code> (lineal).</li>
-          <li><b style="color:var(--teal)">Latente:</b> 2 neuronas, activación <b>lineal</b>. Es el cuello de botella que comprime todo.</li>
+          <li><b style="color:var(--teal)">Latente:</b> 2 neuronas, activación <b>lineal</b> (para no aplastar las coordenadas y poder graficarlas tal cual en el plano). Es el cuello de botella que comprime todo.</li>
           <li><b style="color:var(--violet)">Decodificador:</b> de 2 → capa densa de <code>17</code> (ReLU) → salida de <code>35</code>.</li>
           <li>Salida con <b>tanh</b>, pérdida <b>MSE</b>, optimizador <b>Adam</b>, <b>2000</b> épocas.</li>
+          <li><b>Por qué MSE:</b> como la salida es <b>tanh</b> (valores continuos de −1 a 1), medimos el error como la <b>diferencia al cuadrado</b> entre cada píxel original y el reconstruido. Es la pérdida natural para valores continuos y castiga fuerte los errores grandes. La otra opción (<code>binary_crossentropy</code>) necesita salidas entre 0 y 1, así que <b>no se lleva con tanh</b>.</li>
+          <li><b>Por qué Adam:</b> es un optimizador que <b>ajusta solo la velocidad de aprendizaje</b> de cada peso y la va adaptando sobre la marcha. Converge rápido y estable sin tener que afinar nada a mano — por eso es el estándar para entrenar estas redes.</li>
         </ul>
+        <div class="reveal" style="margin-top:16px;display:grid;gap:10px">
+          <p style="color:var(--ink-soft);border-left:3px solid var(--teal);padding:8px 0 8px 14px">🎯 <b>MSE, con un ejemplo:</b> pensá que cada píxel que la red reconstruye es un <b>dardo</b> que tira a un blanco, y el <b>centro</b> es el valor que ese píxel tenía en el original. MSE mide qué tan mal le fue: agarra la distancia de cada dardo al centro, la <b>eleva al cuadrado</b> y promedia todas. ¿Por qué al cuadrado? Porque así un error chico (te pasaste por un pelito) casi ni suma, pero uno grande (le erraste feo) pesa muchísimo más. Resultado: a la red le conviene, sobre todo, <b>no mandarse ningún error grande</b> — que ningún píxel quede MUY lejos de lo que tenía que ser.</p>
+          <p style="color:var(--ink-soft);border-left:3px solid var(--violet);padding:8px 0 8px 14px">🏔️ <b>Adam, con un ejemplo:</b> entrenar es buscar la combinación de pesos que da el <b>menor error posible</b>. Imaginátelo como estar en un cerro con mucha <b>neblina</b> queriendo llegar al punto más bajo del valle, pero sin ver más allá de tus pies: lo único que sentís es la inclinación del piso. El optimizador es la regla para decidir el próximo paso, y Adam es uno inteligente. <b>(1)</b> Da <b>pasos largos</b> cuando la bajada es clara y los <b>acorta</b> cuando el terreno se aplana (ya estás cerca del fondo), para no pasarse y quedar rebotando. <b>(2)</b> Tiene <b>memoria</b> de hacia dónde venías bajando, así no zigzaguea ante cada bache. Por eso llega rápido y estable sin que le digas a mano cuánto avanzar en cada paso.</p>
+        </div>
         <div class="spec" style="margin-top:14px">
           <div><span>entrada</span><b>35 (7×5)</b></div>
           <div><span>latente</span><b>2</b></div>
@@ -505,19 +511,22 @@ nav ul a.active::after{width:100%}
     <div class="tbl-wrap reveal d1">
       <table class="pruebas">
         <thead>
-          <tr><th>#</th><th>Capas ocultas</th><th>Salida</th><th>Latente</th><th>Pérdida</th><th>loss</th><th>val_loss</th></tr>
+          <tr><th>#</th><th>Capas ocultas</th><th>Salida</th><th>Latente</th><th>Pérdida</th><th>Optim.</th><th>loss</th><th>val_loss</th></tr>
         </thead>
         <tbody>
-          <tr><td>1</td><td>relu (17)</td><td>sigmoid</td><td>relu</td><td>binary_crossentropy</td><td>0.1499</td><td>2.6223</td></tr>
-          <tr><td>2</td><td>relu (17)</td><td>sigmoid</td><td>linear</td><td>binary_crossentropy</td><td>0.0589</td><td>1.9343</td></tr>
-          <tr class="best"><td>3 <span class="tbl-badge">elegida</span></td><td>relu (17)</td><td>tanh</td><td>linear</td><td>mse</td><td>0.0733</td><td><b>0.4884</b></td></tr>
-          <tr><td>4</td><td>relu (24, 12)</td><td>tanh</td><td>linear</td><td>mse</td><td>0.0731</td><td>0.9571</td></tr>
-          <tr><td>5</td><td>relu (24, 12) · <b>denoising</b></td><td>tanh</td><td>linear</td><td>mse</td><td>0.1427</td><td>0.9485</td></tr>
+          <tr><td>1</td><td>relu (17)</td><td>sigmoid</td><td>relu</td><td>binary_crossentropy</td><td>adam</td><td>0.1499</td><td>2.6223</td></tr>
+          <tr><td>2</td><td>relu (17)</td><td>sigmoid</td><td>linear</td><td>binary_crossentropy</td><td>adam</td><td>0.0589</td><td>1.9343</td></tr>
+          <tr class="best"><td>3 <span class="tbl-badge">elegida</span></td><td>relu (17)</td><td>tanh</td><td>linear</td><td>mse</td><td>adam</td><td>0.0733</td><td><b>0.4884</b></td></tr>
+          <tr><td>4</td><td>relu (24, 12)</td><td>tanh</td><td>linear</td><td>mse</td><td>adam</td><td>0.0731</td><td>0.9571</td></tr>
+          <tr><td>5</td><td>relu (24, 12) · <b>denoising</b></td><td>tanh</td><td>linear</td><td>mse</td><td>adam</td><td>0.1427</td><td>0.9485</td></tr>
         </tbody>
       </table>
     </div>
     <p class="reveal" style="margin-top:14px;color:var(--ink-soft);max-width:74ch">
       <b>Qué aprendimos de la tabla:</b> con <b>sigmoid + binary_crossentropy</b> (pruebas 1 y 2) el error sobre datos nuevos quedaba altísimo (val_loss &gt; 1.9). Al pasar a <b>tanh + MSE y latente lineal</b> (prueba 3) el <code>val_loss</code> se desplomó a <b>0.49</b>: fue la mejor de todas. Sumar una segunda capa (prueba 4) no mejoró, así que nos quedamos con la arquitectura más simple que funcionaba. <span class="hl">La prueba 5 es la base del Punto 2 (ruido).</span>
+    </p>
+    <p class="reveal" style="margin-top:14px;color:var(--ink-soft);max-width:74ch;border-left:3px solid var(--teal);padding:10px 0 10px 14px">
+      <b>¿Por qué el <code>val_loss</code> (0.49) es bastante más alto que el <code>loss</code> (0.07)?</b> No es overfitting: es por el tamaño del set. Entrenamos con <b>validation_split=0.1</b> sobre <b>32 caracteres</b>, así que validamos contra apenas <b>3 caracteres sueltos al azar</b> — con tan pocas muestras el número sale alto y ruidoso por construcción. Además, un autoencoder sobre un conjunto <b>finito y fijo</b> está pensado para comprimir bien <em>ese</em> conjunto, no para generalizar a datos nuevos. Por eso miramos el <code>val_loss</code> como <b>guía relativa</b> para comparar las 5 configuraciones entre sí, no como una medida absoluta de error.
     </p>
   </div>
 </section>
@@ -676,14 +685,14 @@ nav ul a.active::after{width:100%}
         <ul>
           <li>Bajamos los sprites de los <b>151 Pokémon</b> de Kanto desde la PokéAPI.</li>
           <li>Los pasamos a escala de grises de <b>100×100</b> (= 10.000 píxeles de entrada).</li>
-          <li>Armamos un autoencoder más grande con cuello de botella de <b>64 dimensiones</b>, capas de 512 y 128, salida <b>sigmoid</b> y pérdida <b>MSE</b>.</li>
-          <li>Entrenamos 100 épocas y reconstruimos un Pokémon al azar.</li>
+          <li>Armamos un autoencoder más grande con cuello de botella de <b>64 dimensiones</b>, capas de 512 y 128 (con <b>BatchNormalization</b> para estabilizar el entrenamiento), salida <b>sigmoid</b> y pérdida <b>MSE</b>.</li>
+          <li>Entrenamos 5000 épocas y reconstruimos un Pokémon al azar.</li>
         </ul>
         <div class="spec" style="margin-top:14px">
           <div><span>imágenes</span><b>151</b></div>
           <div><span>entrada</span><b>100×100</b></div>
           <div><span>latente</span><b>64</b></div>
-          <div><span>épocas</span><b>100</b></div>
+          <div><span>épocas</span><b>5000</b></div>
         </div>
       </div>
 
@@ -693,9 +702,14 @@ nav ul a.active::after{width:100%}
       </div>
     </div>
 
+    <div class="figcard reveal" style="margin-top:30px">
+      <img src="tp3_poke_interpolacion.png" alt="Interpolación en el espacio latente entre dos Pokémon" loading="lazy" />
+      <div class="cap"><b>Interpolación latente.</b> Tomamos dos Pokémon, los comprimimos a sus <b>64 números</b> y caminamos en línea recta de uno al otro (t=0 → t=1). Cada paso intermedio es una imagen que <b>la red nunca vio</b>: la prueba concreta de que en ese espacio se pueden generar formas nuevas, mezcla de las aprendidas — lo mismo que la "mezcla" de caracteres del Punto 1, pero en imágenes.</div>
+    </div>
+
     <div class="panel reveal" style="margin-top:30px;border-top:4px solid var(--violet)">
       <h3>Qué muestra este escenario <span class="tg">conclusión del punto</span></h3>
-      <p style="color:var(--ink-soft);max-width:80ch">Pasar de 10.000 píxeles a sólo <b>64 números</b> y volver a una imagen reconocible demuestra el poder de la compresión latente. La reconstrucción sale <b>borrosa</b> porque 64 dimensiones para 151 Pokémon distintos es un cuello muy apretado y con sólo 100 épocas — pero la <b>silueta</b> está. Moviéndonos por ese espacio latente de 64D podríamos generar <b>Pokémon "nuevos"</b>, mezcla de los que la red aprendió, igual que mezclábamos caracteres en el Punto 1. <span class="hl">El mismo principio, a otra escala.</span></p>
+      <p style="color:var(--ink-soft);max-width:80ch">Pasar de 10.000 píxeles a sólo <b>64 números</b> y volver a una imagen reconocible demuestra el poder de la compresión latente. La reconstrucción sale <b>borrosa</b> porque, aun con <b>5000 épocas</b>, 64 dimensiones para 151 Pokémon distintos es un cuello muy apretado — pero la <b>silueta</b> está. Y al <b>movernos por ese espacio latente de 64D</b> generamos <b>Pokémon "nuevos"</b>, mezcla de los que la red aprendió, igual que mezclábamos caracteres en el Punto 1. <span class="hl">El mismo principio, a otra escala.</span></p>
     </div>
   </div>
 </section>
@@ -710,7 +724,7 @@ nav ul a.active::after{width:100%}
       <div class="ccard reveal" style="border-top-color:var(--red)"><div class="ic">!</div><h4>La elección de la activación</h4><p>Con sigmoid + binary_crossentropy el error sobre datos nuevos era altísimo (val_loss &gt; 1.9). Recién con tanh + MSE + latente lineal la red empezó a converger bien.</p></div>
       <div class="ccard reveal d1" style="border-top-color:var(--amber)"><div class="ic">⌗</div><h4>Escalar los datos</h4><p>Como la salida es tanh (−1 a 1), hubo que escalar las imágenes de {0,1} a {−1,1} y ajustar el umbral a 0.0 para volver a blanco y negro.</p></div>
       <div class="ccard reveal d2" style="border-top-color:var(--teal)"><div class="ic">◧</div><h4>El cuello de 2D es muy chico</h4><p>Comprimir a sólo 2 números pierde información: símbolos muy parecidos caen casi en el mismo punto del plano y a veces se confunden.</p></div>
-      <div class="ccard reveal d3" style="border-top-color:var(--violet)"><div class="ic">▦</div><h4>Pokémon en alta resolución</h4><p>10.000 píxeles de entrada pesan mucho: hubo que sumar capas y BatchNormalization, y aun así la reconstrucción queda borrosa con pocas épocas.</p></div>
+      <div class="ccard reveal d3" style="border-top-color:var(--violet)"><div class="ic">▦</div><h4>Pokémon en alta resolución</h4><p>10.000 píxeles de entrada pesan mucho: hubo que sumar capas y BatchNormalization, y aun así —incluso con 5000 épocas— la reconstrucción queda borrosa por lo apretado del cuello de 64D para 151 Pokémon distintos.</p></div>
     </div>
   </div>
 </section>
@@ -756,6 +770,14 @@ nav ul a.active::after{width:100%}
       <div class="scard reveal d1" style="border-top:4px solid var(--violet)">
         <h4>¿Por qué tanh + MSE y no sigmoid?</h4>
         <p style="color:var(--ink-soft)">Lo probamos: con sigmoid + binary_crossentropy el <code>val_loss</code> quedaba arriba de 1.9. Con <b>tanh + MSE y latente lineal</b> bajó a 0.49. Fue una decisión empírica, mirando qué configuración reconstruía mejor.</p>
+      </div>
+      <div class="scard reveal" style="border-top:4px solid var(--blue)">
+        <h4>¿Por qué en Pokémon usaron sigmoid y en los caracteres tanh?</h4>
+        <p style="color:var(--ink-soft)">Porque la activación de salida se elige según el <b>rango en que escalás los datos</b>. En caracteres escalamos a <b>−1 a 1</b> → tanh; en Pokémon dejamos los píxeles en <b>0 a 1</b> → sigmoid. En los dos casos la pérdida es la misma, <b>MSE</b>.</p>
+      </div>
+      <div class="scard reveal d1" style="border-top:4px solid var(--teal)">
+        <h4>¿Esto genera de verdad? ¿Cualquier punto sirve?</h4>
+        <p style="color:var(--ink-soft)">No es un autoencoder <b>variacional (VAE)</b>, así que el espacio latente no está regularizado: un punto <b>cualquiera</b> puede dar basura. Por eso generamos en puntos <b>intermedios</b> entre datos conocidos (y por interpolación en Pokémon), que es donde el espacio está <b>bien poblado</b> y decodifica limpio.</p>
       </div>
     </div>
   </div>
