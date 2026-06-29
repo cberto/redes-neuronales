@@ -1,44 +1,40 @@
-import os
-import sys
+"""
+Configuración para descargar y organizar imágenes desde Kaggle.
+"""
 
-_ROOT = os.path.dirname(os.path.abspath(__file__))
+from utils.preparar_datos import descargar
 
-
-def _ensure_venv():
-    if sys.platform == "win32":
-        venv_python = os.path.join(_ROOT, "venv_linux", "Scripts", "python.exe")
-    else:
-        venv_python = os.path.join(_ROOT, "venv_linux", "bin", "python")
-
-    if not os.path.isfile(venv_python):
-        print("Entorno virtual no encontrado. Ejecutá:")
-        print("  make -f Makefile-Macos init")
-        sys.exit(1)
-
-    if os.path.realpath(sys.executable) != os.path.realpath(venv_python):
-        os.environ.setdefault("MPLBACKEND", "Agg")
-        os.execv(venv_python, [venv_python] + sys.argv)
-
-
-_ensure_venv()
-os.environ.setdefault("MPLBACKEND", "Agg")
-sys.path.insert(0, _ROOT)
-
-from utils.helpers import like_json
-from tp_1.part_1 import tp1
+# ============================================================
 from tp_2.part_1 import tp2
 from tp_3.part_1 import tp3
 from tp_3.part_2 import tp3_part_3
+from utils.preparar_datos import descargar
 
+API_COMMAND = "competitions download -c dogs-vs-cats-redux-kernels-edition"
+DEST_DIR = "./datasets"
+CATEGORIAS = ["cat", "dog"]
+LIMITE = 100
 
 def main():
-    result_1 = tp1()
+    descargar(
+            api_command=API_COMMAND,
+            dest_dir=DEST_DIR,
+            categorias=CATEGORIAS,
+            limite=LIMITE,
+    )
+    # result_1 = tp1()
     # result_2 = tp2()
-    # result_3 = tp3_part_3()
-    # result_3_2 = tp3_high_res()
-    print("Resultado 1_2: ", like_json(result_1))
-    # print("Resultado 1_2: ", like_json(result_2))
-    # print("Resultado 1_3: ", like_json(result_3))
+    # result_3 = tp3()
+    # result_3_2 = tp3_part_3()
+    # print("Resultado 1: ", like_json(result_1))
+    # print("Resultado 2: ", like_json(result_2))
+    # print("Resultado 3: ", like_json(result_3))
+
+    # También puedes bajar el kernel de Kaggle (como antes)
+    # command = "kaggle kernels pull gpreda/cats-or-dogs-using-cnn-with-transfer-learning"
+    # get_data_kaggle(command, doc_path="./kaggle_data.json")
+
+    # Ejecutar pipeline completo de Cats vs Dogs
 
 
 if __name__ == "__main__":

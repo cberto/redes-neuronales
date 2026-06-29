@@ -25,11 +25,11 @@ install-deps: requirements-runtime.txt install-venv
 	@echo "Instalando dependencias de ejecución..."
 	$(PIP) install --upgrade pip
 	$(PIP) install -r requirements-runtime.txt
-	@echo "Listo. (Para instalar todo requirements.txt: make deps-full)"
+	@echo "Listo. (Para instalar todo requirements-runtime.txt: make deps-full)"
 
 deps-full: install-venv
-	@echo "Instalando requirements.txt completo..."
-	$(PIP) install -r requirements.txt
+	@echo "Instalando requirements-runtime.txt completo..."
+	$(PIP) install -r requirements-runtime.txt
 	@echo "Listo."
 
 run:
@@ -42,5 +42,5 @@ ej2:
 
 update-deps:
 	@echo "Actualizando requirements-runtime.txt..."
-	$(PIP) freeze > requirements.txt
+	$(PIP) freeze > requirements-runtime.txt
 	@echo "Hecho."
