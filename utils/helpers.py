@@ -642,3 +642,6 @@ def fetch_pokemon_as_input(pokemon_ids, target_size=(5, 7), mode_tanh=True):
             print(f"[ERROR] No se pudo procesar el Pokémon {p_id}: {e}")
 
     return np.array(processed_images).astype('float32'), names
+
+def convert_dataset_img(dir_path, subclass, dim):
+    return

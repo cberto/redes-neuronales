@@ -1,14 +1,11 @@
 """
 Configuración para descargar y organizar imágenes desde Kaggle.
 """
-
-from utils.preparar_datos import descargar
-
-# ============================================================
 from tp_2.part_1 import tp2
 from tp_3.part_1 import tp3
 from tp_3.part_2 import tp3_part_3
 from utils.preparar_datos import descargar
+from utils.helpers import convert_dataset_img
 
 API_COMMAND = "competitions download -c dogs-vs-cats-redux-kernels-edition"
 DEST_DIR = "./datasets"
@@ -22,6 +19,7 @@ def main():
             categorias=CATEGORIAS,
             limite=LIMITE,
     )
+    convert_dataset_img(DEST_DIR, CATEGORIAS, [512, 512])
     # result_1 = tp1()
     # result_2 = tp2()
     # result_3 = tp3()
