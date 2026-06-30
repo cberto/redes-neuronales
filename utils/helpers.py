@@ -1,3 +1,4 @@
+import os
 import csv
 import math
 import json
@@ -644,4 +645,44 @@ def fetch_pokemon_as_input(pokemon_ids, target_size=(5, 7), mode_tanh=True):
     return np.array(processed_images).astype('float32'), names
 
 def convert_dataset_img(dir_path, subclass, dim):
-    return
+    """
+    Lee todas las imágenes de la carpeta dir_path/subclass, las convierte a
+    escala de grises, las redimensiona a dim x dim (por defecto pensado para
+    512x512) y las normaliza/aplana para usarlas como entrada de la red.
+
+    dim puede ser un entero (cuadrado) o una tupla (ancho, alto).
+    Devuelve (imagenes, nombres).
+    """
+    # Acepta dim como int (512) o como tupla (512, 512)
+    target_size = (dim, dim) if isinstance(dim, int) else tuple(dim)
+
+    folder = os.path.join(dir_path, subclass)
+    extensiones = (".png", ".jpg", ".jpeg", ".bmp", ".gif")
+
+    processed_images = []
+    names = []
+
+    for nombre in sorted(os.listdir(folder)):
+        if not nombre.lower().endswith(extensiones):
+            continue
+        try:
+            ruta = os.path.join(folder, nombre)
+            img = Image.open(ruta)
+
+            # 1. Aplanar transparencia sobre fondo blanco y pasar a escala de grises
+            img = img.convert("RGBA")
+            background = Image.new("RGBA", img.size, (255, 255, 255))
+            composite = Image.alpha_composite(background, img).convert("L")
+
+            # 2. Redimensionar al tamaño pedido (LANCZOS conserva calidad)
+            composite = composite.resize(target_size, Image.Resampling.LANCZOS)
+
+            # 3. Normalizar (0-1) y aplanar
+            data = np.array(composite).flatten() / 255.0
+
+            processed_images.append(data)
+            names.append(f"{subclass}_{nombre}")
+        except Exception as e:
+            print(f"[ERROR] No se pudo procesar la imagen {nombre}: {e}")
+
+    return np.array(processed_images).astype("float32"), names
