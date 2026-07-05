@@ -6,13 +6,17 @@ Todas las pruebas con 4 clases (Gatos, Aves, Caballos, Tortugas), 100 img/clase,
 
 ## 📊 TABLA COMPARATIVA
 
-| Prueba | IMG_SIZE | FILTERS | KERNEL | POOL_STRIDES | PADDING | DENSE | EPOCHS | **Acc** | **Loss** |
-|--------|----------|---------|--------|-------------|---------|-------|--------|---------|----------|
-| **1** ⚠️ | 512 | [32,64] | [7,7] | [2,2] | same | [256,128] | 30 | **47.5%** | 4.25 |
-| **2** | 64 | [32,64,128] | [3,3,3] | [2,2,2] | same | [256,128] | 30 | **56.25%** | 2.50 |
-| **3** ✅ | 64 | [32,64] | [5,3] | [2,2] | same | [256,128] | 30 | **57.5%** | 2.93 |
-| **4** | 64 | [32,64] | [3,3] | [2,2] | same | [64,32] | 30 | **56.25%** | 2.16 |
-| **5** 🏆 | 128 | [32,64] | [3,3] | [2,2] | **valid** | [256,128] | 30 | **62.5%** | 2.22 |
+| # | IMG_SIZE | FILTERS | KERNEL | PADDING | DENSE | EPOCHS | **Acc** | **Loss** | Destacado |
+|---|----------|---------|--------|---------|-------|--------|---------|----------|-----------|
+| 1 | 512 | [32,64] | [7,7] | same | [256,128] | 30 | **47.5%** | 4.25 | ❌ |
+| 2 | 64 | [32,64,128] | [3,3,3] | same | [256,128] | 30 | **56.25%** | 2.50 | |
+| 3 | 64 | [32,64] | [5,3] | same | [256,128] | 30 | **57.5%** | 2.93 | |
+| 4 | 64 | [32,64] | [3,3] | same | [64,32] | 30 | **56.25%** | 2.16 | Mejor loss |
+| 5 | 128 | [32,64] | [3,3] | **valid** | [256,128] | 30 | **62.5%** | 2.22 | |
+| 6 | 128 | [32,64] | [3,3] | valid | [256,128] | **50** | **51.25%** | 3.00 | Sobreajuste |
+| 7 | 128 | [32,64] | [5,3] | valid | [256,128] | 50 | **52.5%** | 3.15 | |
+| **8** 🏆 | 128 | **[32,64,128]** | [3,3,3] | valid | [256,128] | 50 | **67.5%** | 3.47 | **Mejor accuracy** |
+| 9 | 128 | [32,64,128] | [5,3,3] | valid | [256,128] | **100** | **61.25%** | 3.66 | Sobreajuste |
 
 ---
 
@@ -33,29 +37,73 @@ IMG_SIZE=64, FILTERS=[32,64,128], KERNEL=[3,3,3], POOL_STRIDES=[2,2,2]
 > **3 capas Conv2D** ayudan a captar más patrones jerárquicos.
 > **Loss baja de 4.25 → 2.50** (la red aprende mucho mejor).
 
-### Prueba 3 — 57.5% ✅ (mejor hasta ese momento)
+### Prueba 3 — 57.5% ✅
 ```
 IMG_SIZE=64, KERNEL=[5,3], FILTERS=[32,64]
 ```
 > **Kernel 5×5 en primera capa** ve más contexto (25 píxeles vs 9 del 3×3).
-> Las **Tortugas** suben a 0.70 de recall (antes 0.57) → el kernel más grande ayuda a distinguir sus formas redondeadas.
+> Las **Tortugas** suben a 0.70 de recall (antes 0.57).
 
-### Prueba 4 — 56.25% ✅ (misma accuracy, mejor loss)
+### Prueba 4 — 56.25% ✅ (mejor loss)
 ```
 IMG_SIZE=64, DENSE=[64,32], KERNEL=[3,3]
 ```
-> **Loss más bajo: 2.16** (contra 2.93 de prueba 3). Menos neuronas densas = menos ruido.
-> **Tortugas 0.70** igual que prueba 3.
-> **Conclusión:** [64,32] es mejor que [256,128] para 64×64 — menos sobreajuste.
+> **Loss más bajo: 2.16.** Menos neuronas densas = menos ruido.
+> **Conclusión:** [64,32] es mejor que [256,128] para 64×64.
 
-### Prueba 5 — 62.5% 🏆 (la mejor)
+### Prueba 5 — 62.5% 🥈
 ```
-IMG_SIZE=128, PADDING='valid', KERNEL=[3,3]
+IMG_SIZE=128, PADDING='valid', KERNEL=[3,3], EPOCHS=30
 ```
 > **padding='valid'** reduce la imagen naturalmente (sin relleno de ceros).
-> Con 128×128 + valid: 128→126→63→61→30 (aprox). Mucha más resolución que 64×64.
 > **Gatos 0.84 recall** — muy bueno.
-> **Aves 0.44 recall** — sigue siendo la clase más difícil (plumas, texturas finas).
-> **Conclusión:** Más resolución + padding='valid' fue la mejor combinación.
+
+### Prueba 6 — 51.25% ❌ (la peor después de la 1)
+```
+Misma config que prueba 5 pero con EPOCHS=50 (más épocas)
+```
+> **Empeoró** respecto a prueba 5 (62.5% → 51.25%). Esto es **SOBREAJUSTE**: más épocas no siempre es mejor, la red empieza a memorizar.
+
+### Prueba 7 — 52.5% ⚠️
+```
+KERNEL=[5,3] con IMG_SIZE=128 y valid
+```
+> **Kernel 5×5 no ayuda** con IMG_SIZE=128 y valid. La imagen se reduce mucho más rápido.
+
+### Prueba 8 — 67.5% 🏆 (LA MEJOR)
+```
+IMG_SIZE=128, FILTERS=[32,64,128], PADDING=valid, EPOCHS=50
+```
+> **3 capas Conv2D** aprenden patrones jerárquicos (bordes → texturas → formas).
+> **Gatos 0.89 recall** — excelente.
+> **Caballos 0.83 precision** — cuando predice caballo, acierta muy seguido.
+> **Aves 0.56 recall** — siguen siendo lo más difícil.
+
+### Prueba 9 — 61.25% ⚠️
+```
+Misma config que prueba 8 pero con KERNEL=[5,3,3] y EPOCHS=100
+```
+> **100 épocas es demasiado.** Aunque mejor que prueba 8 en theory, el accuracy bajó (67.5 → 61.25). 
+> La red empieza a sobreajustar después de cierto punto.
 
 ---
+
+## 📈 HALLAZGOS CLAVE
+
+1. **padding='valid' es mejor que 'same'** — reduce progresivamente sin ceros artificiales
+2. **3 capas Conv2D superan a 2 capas** — [32,64,128] dio el mejor resultado (67.5%)
+3. **50 épocas es mejor que 100** — con pocos datos, más épocas = sobreajuste
+4. **Gatos** son la clase más fácil (recall 0.74-0.89)
+5. **Aves** son las más difíciles (recall 0.39-0.56) — plumas y texturas variadas
+6. **Kernel 5×5 en primera capa** da resultados mixtos — ayuda con 64×64, no con 128×128+valid
+
+---
+
+## 🚀 PRÓXIMOS EXPERIMENTOS SUGERIDOS
+
+| # | Configuración | Por qué |
+|---|--------------|---------|
+| **10** 🏆 | Prueba 8 + DENSE=[128,64] | Menos densas + 3 capas = menos sobreajuste |
+| **11** 🔥 | Prueba 8 + DENSE=[64,32] + EPOCHS=80 | Red más chica, más épocas controladas |
+| **12** 🧪 | IMG_SIZE=64, FILTERS=[32,64,128], valid, EPOCHS=50 | Misma config ganadora pero más rápido |
+| **13** 📊 | MAX_POR_CLASE=200 (si hay) | Más datos siempre ayuda |

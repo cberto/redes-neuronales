@@ -52,8 +52,8 @@ def tp4():
     #     3) Reduce la carga computacional
 
     FILTERS = [32, 64, 128]  # 32 filtros en 1ra capa, 64 en 2da
-    KERNEL_SIZES = [3, 3, 3]  # ventana 3×3 (estándar mínimo)
-    CONV_STRIDES = [1, 1]  # píxel por píxel (no submuestrear)
+    KERNEL_SIZES = [5, 3, 3]  # ventana 3×3 (estándar mínimo)
+    CONV_STRIDES = [1, 1, 1]  # píxel por píxel (no submuestrear)
     CONV_PADDING = "valid"  # "same" conserva tamaño, "valid" lo reduce
     POOL_SIZES = [2, 2, 2]  # ventana 2×2 para el pooling
     POOL_STRIDES = [2, 2, 2]  # stride=2 → reduce a la mitad
@@ -63,7 +63,7 @@ def tp4():
     DENSE_UNITS = [256, 128]  # Neuronas de las capas ocultas
 
     # ─── Entrenamiento ────────────────────────────────────────────
-    EPOCHS = 1000
+    EPOCHS = 50
     BATCH_SIZE = 16
     LEARNING_RATE = 0.001
     OPTIMIZER = "adam"

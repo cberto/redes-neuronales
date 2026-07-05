@@ -145,6 +145,11 @@ def evaluar(model, x_test, y_test, clases, output_dir=None):
     # Matriz de confusión
     cm = confusion_matrix(y_true_c, y_pred_c)
 
+    # Totales reales por fila para mostrarlos en las etiquetas
+    # (así se ve cuántos había de cada clase, ej: "Gatos (19)")
+    totales_fila = cm.sum(axis=1)
+    etiq_reales = [f"{c}\n({totales_fila[i]})" for i, c in enumerate(clases)]
+
     plt.figure(figsize=(8, 6))
     sns.heatmap(
         cm,
@@ -152,7 +157,7 @@ def evaluar(model, x_test, y_test, clases, output_dir=None):
         fmt="d",
         cmap="Blues",
         xticklabels=clases,
-        yticklabels=clases,
+        yticklabels=etiq_reales,
         annot_kws={"size": 14},
     )
     plt.title(f"Matriz de Confusión  (Acc: {acc*100:.1f}%)", fontsize=13)
