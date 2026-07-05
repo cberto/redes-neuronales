@@ -42,49 +42,27 @@ def construir_cnn(
     Construye la CNN secuencial con la arquitectura:
       Conv2D → MaxPooling2D → Conv2D → MaxPooling2D → ...
       → Flatten → Dense → Dense → ... → Dense(N_CLASES, softmax)
-
-    ESPACIO DIDÁCTICO: Explicación de conceptos clave
-    ─────────────────────────────────────────────────
-    FILTROS (filters):
-      Cada filtro es como un "detector de patrones" que se desliza
-      sobre la imagen. Si ponés filters=32, estás usando 32 detectores
-      diferentes. Cada uno aprende a reconocer algo distinto (bordes
-      verticales, horizontales, texturas, etc.).
-
-      NO es un filtro de 32×64. Cada filtro individual tiene tamaño
-      kernel_size × kernel_size (ej: 2×2). "32" es la CANTIDAD de
-      filtros que la capa aprende. La salida tiene 32 canales, uno
-      por cada filtro.
-
-    KERNEL SIZE (kernel_size):
-      Es el tamaño de la "ventanita" que se desliza. kernel_size=2
-      significa una ventana de 2×2 píxeles. Cada filtro mira 2×2
-      píxeles a la vez y aprende un patrón en esa pequeña región.
-
-    STRIDES:
-      Es el "paso" que da la ventana al deslizarse. strides=1 significa
-      que la ventana avanza 1 píxel por vez. strides=2 avanza de a 2,
-      reduciendo el tamaño del mapa a la mitad (downsampling).
-
-      EJEMPLO CONCRETO con una imagen de 32×32:
-        - Conv2D(filters=32, kernel_size=2, strides=1, padding='same')
-          → La ventana de 2×2 recorre TODA la imagen, píxel por píxel.
-          → Como padding='same', la salida es 32×32×32 (alto×ancho×filtros).
-          → Son 32 mapas de activación, cada uno de 32×32.
-
-        - MaxPooling2D(pool_size=2, strides=1, padding='same')
-          → Toma la ventana de 2×2 y se queda con el valor MÁXIMO.
-          → strides=1 mantiene tamaño similar. strides=2 reduce a la mitad.
-
-      padding='same' → la salida tiene las mismas dimensiones que la entrada
-      padding='valid' → sin relleno, la salida se achica
     """
+    n_conv = len(filters_list)
+
+    # Auto-completar: si el usuario puso 3 filtros pero solo 2 strides,
+    # se completa con el último valor para evitar IndexError.
+    # Así FILTERS=[32,64,128] funciona aunque solo ponga CONV_STRIDES=[1,1].
+    while len(kernel_sizes_list) < n_conv:
+        kernel_sizes_list.append(kernel_sizes_list[-1] if kernel_sizes_list else 3)
+    while len(conv_strides_list) < n_conv:
+        conv_strides_list.append(conv_strides_list[-1] if conv_strides_list else 1)
+    while len(pool_sizes_list) < n_conv:
+        pool_sizes_list.append(pool_sizes_list[-1] if pool_sizes_list else 2)
+    while len(pool_strides_list) < n_conv:
+        pool_strides_list.append(pool_strides_list[-1] if pool_strides_list else 2)
+
     model = Sequential(name="CNN_Tp4")
 
     model.add(layers.Input(shape=input_shape))
 
     # --- Capas Conv2D + MaxPooling2D ---
-    for i in range(len(filters_list)):
+    for i in range(n_conv):
         model.add(
             layers.Conv2D(
                 filters=filters_list[i],
@@ -175,7 +153,7 @@ def evaluar(model, x_test, y_test, clases, output_dir=None):
         cmap="Blues",
         xticklabels=clases,
         yticklabels=clases,
-        annot_kws={"size": 14},  # letra más grande para los números
+        annot_kws={"size": 14},
     )
     plt.title(f"Matriz de Confusión  (Acc: {acc*100:.1f}%)", fontsize=13)
     plt.xlabel("Predicción", fontsize=12)
@@ -223,12 +201,9 @@ def mostrar_predicciones(model, x_test, y_test, clases, n_ejemplos=10, output_di
         plt.title(titulo, fontsize=10, color=color)
         plt.axis("off")
 
-    plt.suptitle(
-        "Predicciones del modelo (10 ejemplos)", fontsize=14, fontweight="bold"
-    )
+    plt.suptitle("Predicciones del modelo (10 ejemplos)", fontsize=14, fontweight="bold")
     plt.tight_layout()
 
-    # Guardar en el directorio correcto
     if output_dir is None:
         output_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     ruta_guardado = os.path.join(output_dir, "predicciones.png")

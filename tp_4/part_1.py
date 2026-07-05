@@ -15,23 +15,9 @@ from tp_4.addons.functions import (
 
 
 def tp4():
-    """
-    Clasificador convolucional parametrizable.
 
-    Los parámetros se definen como CONSTANTES EN MAYÚSCULAS dentro
-    de esta función. Modificarlos acá o desde main.py.
-    """
-    print("\n" + "=" * 70)
-    print("  TP4 — CLASIFICADOR CNN CONVOLUCIONAL")
-    print("=" * 70)
-
-    # ================================================================
-    # PARÁMETROS (todo en MAYÚSCULAS)
-    # ================================================================
-
-    # ─── Datos ─────────────────────────────────────────────────────
     CLASES = ["Gatos", "Aves", "Caballos", "Tortugas"]
-    IMG_SIZE = 512  # Las originales son 512x512, entran 8 gatos en 64
+    IMG_SIZE = 128  # Las originales son 512x512, entran 8 gatos en 64
     MAX_POR_CLASE = 100  # Cuántas imágenes por clase
     VALIDATION_SPLIT = 0.2
 
@@ -64,30 +50,20 @@ def tp4():
     #     1) Reduce la dimensión (64×64 → 32×32)
     #     2) Hace el modelo "invariante" a pequeñas traslaciones
     #     3) Reduce la carga computacional
-    #
-    # EJEMPLO COMPLETO con entrada 64×64 gris:
-    #   Conv2D(32, kernel=3, strides=1) → 64×64×32
-    #     (32 detectores de 3×3 barren la imagen, producen 32 mapas)
-    #   MaxPooling2D(pool=2, stride=2)  → 32×32×32
-    #     (en cada bloque 2×2 se queda con el valor máximo)
-    #   Conv2D(64, kernel=3, strides=1) → 32×32×64
-    #   MaxPooling2D(pool=2, stride=2)  → 16×16×64
-    #   Flatten → 16×16×64 = 16.384 neuronas
-    #   Dense(256) → Dense(128) → Dense(4, softmax)
-    #
-    FILTERS = [32, 64]  # 32 filtros en 1ra capa, 64 en 2da
-    KERNEL_SIZES = [7, 7]  # ventana 3×3 (estándar mínimo)
+
+    FILTERS = [32, 64, 128]  # 32 filtros en 1ra capa, 64 en 2da
+    KERNEL_SIZES = [3, 3, 3]  # ventana 3×3 (estándar mínimo)
     CONV_STRIDES = [1, 1]  # píxel por píxel (no submuestrear)
-    CONV_PADDING = "same"  # "same" conserva tamaño, "valid" lo reduce
-    POOL_SIZES = [2, 2]  # ventana 2×2 para el pooling
-    POOL_STRIDES = [2, 2]  # stride=2 → reduce a la mitad
-    POOL_PADDING = "same"  # "same" o "valid"
+    CONV_PADDING = "valid"  # "same" conserva tamaño, "valid" lo reduce
+    POOL_SIZES = [2, 2, 2]  # ventana 2×2 para el pooling
+    POOL_STRIDES = [2, 2, 2]  # stride=2 → reduce a la mitad
+    POOL_PADDING = "valid"  # "same" o "valid"
 
     # ─── Capas Dense ──────────────────────────────────────────────
     DENSE_UNITS = [256, 128]  # Neuronas de las capas ocultas
 
     # ─── Entrenamiento ────────────────────────────────────────────
-    EPOCHS = 20
+    EPOCHS = 1000
     BATCH_SIZE = 16
     LEARNING_RATE = 0.001
     OPTIMIZER = "adam"
@@ -96,10 +72,6 @@ def tp4():
     # ─── Modelo ───────────────────────────────────────────────────
     RECUPERAR = False  # True → carga modelo guardado
     NOMBRE_MODELO = "cnn_clasificador"
-
-    # ================================================================
-    # EJECUCIÓN
-    # ================================================================
 
     n_clases = len(CLASES)
     input_shape = (IMG_SIZE, IMG_SIZE, 1)  # Siempre escala de grises, 1 canal
@@ -121,6 +93,7 @@ def tp4():
     # One-hot encoding
     y_train = keras.utils.to_categorical(y_train, num_classes=n_clases)
     y_val = keras.utils.to_categorical(y_val, num_classes=n_clases)
+    
     # 2. Construir, entrenar o recuperar modelo
     print("\n[2/5] CONSTRUYENDO / RECUPERANDO MODELO...")
     ruta_modelos = os.path.join(os.path.dirname(os.path.abspath(__file__)), "models")
@@ -183,7 +156,6 @@ def tp4():
         acc = acc_val
         loss = loss_val
     print("\n" + "=" * 70)
-    print(f"  ✅ TP4 COMPLETADO")
     print(f"  Accuracy (val) : {acc*100:.2f}%")
     print(f"  Loss (val)     : {loss:.4f}")
     print("=" * 70)
