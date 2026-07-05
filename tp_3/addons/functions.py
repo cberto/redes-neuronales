@@ -161,7 +161,7 @@ def graficar_espacio_latente(encoder, plane_data, etiquetas,
     plt.grid(True, alpha=0.3)
     plt.savefig(path, dpi=150, bbox_inches="tight")
     plt.close()
-    print(f"[INFO] Gráfico del espacio latente guardado en: {path}")
+    print(f" Gráfico del espacio latente guardado en: {path}")
     return coords
 
 
@@ -184,7 +184,7 @@ def generar_caracter(decoder, punto_latente, threshold=0.5, path="./Documento/tp
     salida = decoder.predict(z, verbose=0)[0]          # 35 valores entre 0 y 1
     imagen = (salida > threshold).astype(int)          # umbral dinámico
 
-    print(f"\n[INFO] Carácter generado en z=({punto_latente[0]:.2f}, "
+    print(f"\n Carácter generado en z=({punto_latente[0]:.2f}, "
           f"{punto_latente[1]:.2f}):")
     for i in range(7):
         fila = imagen[i * 5:(i + 1) * 5]
@@ -196,7 +196,7 @@ def generar_caracter(decoder, punto_latente, threshold=0.5, path="./Documento/tp
     plt.axis("off")
     plt.savefig(path, dpi=150, bbox_inches="tight")
     plt.close()
-    print(f"[INFO] Imagen del carácter nuevo guardada en: {path}")
+    print(f" Imagen del carácter nuevo guardada en: {path}")
     return imagen
 
 

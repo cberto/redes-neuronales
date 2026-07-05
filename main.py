@@ -4,6 +4,7 @@ Configuración para descargar y organizar imágenes desde Kaggle.
 from tp_2.part_1 import tp2
 from tp_3.part_1 import tp3
 from tp_3.part_2 import tp3_part_3
+from tp_4.part_1 import tp4
 from utils.preparar_datos import descargar
 from utils.helpers import convert_dataset_img
 
@@ -13,13 +14,15 @@ CATEGORIAS = ["cat", "dog"]
 LIMITE = 100
 
 def main():
-    descargar(
-            api_command=API_COMMAND,
-            dest_dir=DEST_DIR,
-            categorias=CATEGORIAS,
-            limite=LIMITE,
-    )
-    convert_dataset_img(DEST_DIR, CATEGORIAS, [512, 512])
+    # ── Ejecutar TP4 (parámetros definidos dentro de tp4() en MAYÚSCULAS) ──
+    resultados = tp4()
+    # descargar(
+    #         api_command=API_COMMAND,
+    #         dest_dir=DEST_DIR,
+    #         categorias=CATEGORIAS,
+    #         limite=LIMITE,
+    # )
+    # convert_dataset_img(DEST_DIR, CATEGORIAS, [512, 512])
     # result_1 = tp1()
     # result_2 = tp2()
     # result_3 = tp3()

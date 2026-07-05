@@ -8,6 +8,7 @@ import requests
 from PIL import Image
 from io import BytesIO
 import matplotlib.pyplot as plt
+import keras
 from scipy.interpolate import make_interp_spline
 
 
@@ -535,20 +536,19 @@ def outputs_multicapa(size, max=1, min=-1):
     return outputs
 
 
-
-def agregar_ruido(bits, prob=0.02):    
+def agregar_ruido(bits, prob=0.02):
     bits = np.asarray(bits).copy()
-    #[1, 0, 1, 0]
-    random_vals = np.random.random(bits.shape) #valores aleatoreos del arreglo
-    #[0.5, 0.01, 0.01, 0.2]
+    # [1, 0, 1, 0]
+    random_vals = np.random.random(bits.shape)  # valores aleatoreos del arreglo
+    # [0.5, 0.01, 0.01, 0.2]
     ruidoso = []
     for i in range(len(bits)):
         if random_vals[i] < prob:
             ruidoso.append(-bits[i])
         else:
-            ruidoso.append(bits[i]) 
-    #[1, 1, 0, 0]        
-    return np.array(ruidoso, dtype='float32')
+            ruidoso.append(bits[i])
+    # [1, 1, 0, 0]
+    return np.array(ruidoso, dtype="float32")
 
 
 def read_json(file_path, encoding="utf-8"):
@@ -561,25 +561,26 @@ def read_json(file_path, encoding="utf-8"):
         print(f"Error al guardar los datos: {e}")
         return []
 
+
 def hex_a_binario(matriz):
     matriz_binaria = []
-    
+
     for fila in matriz:
         nueva_fila = []
         # El último elemento es el carácter de control (ej: "2" o "1"), no lo convertimos
         codigos_hex = fila[:-1]
         caracter = fila[-1]
-        
+
         for h in codigos_hex:
             # 1. int(h, 16) convierte "0x0e" en el entero 14
             # 2. f"{...:05b}" lo pasa a binario rellenando con ceros hasta 5 bits
-            binario = f"{int(h, 16):05b}" 
+            binario = f"{int(h, 16):05b}"
             nueva_fila.append(binario)
-            
+
         # Volvemos a agregar el carácter al final
         nueva_fila.append(caracter)
         matriz_binaria.append(nueva_fila)
-        
+
     return matriz_binaria
 
 
@@ -594,6 +595,7 @@ def prepare_items_for_keras(input_list):
         matrix.append(item)
     return matrix
 
+
 def display_pattern(bits, label="", rows=7, cols=5, return_str=False):
     output = []
     if label:
@@ -601,16 +603,17 @@ def display_pattern(bits, label="", rows=7, cols=5, return_str=False):
     for i in range(rows):
         fila = bits[i * cols : (i + 1) * cols]
         output.append("".join(["█" if b == 1 else " " for b in fila]))
-    
+
     if return_str:
         return "\n".join(output)
-    
+
     for line in output:
         print(line)
 
+
 def fetch_pokemon_as_input(pokemon_ids, target_size=(5, 7), mode_tanh=True):
     """
-    Descarga imágenes de PokeAPI, las convierte a escala de grises, 
+    Descarga imágenes de PokeAPI, las convierte a escala de grises,
     las redimensiona y las normaliza para el autoencoder.
     """
     base_url = "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork"
@@ -622,27 +625,28 @@ def fetch_pokemon_as_input(pokemon_ids, target_size=(5, 7), mode_tanh=True):
             url = f"{base_url}/{p_id}.png"
             response = requests.get(url)
             img = Image.open(BytesIO(response.content))
-            
+
             # 1. Convertir a RGBA para manejar transparencia y luego a Grayscale
             img = img.convert("RGBA")
             background = Image.new("RGBA", img.size, (255, 255, 255))
             composite = Image.alpha_composite(background, img).convert("L")
-            
+
             # 2. Redimensionar al tamaño del autoencoder (5x7)
             # Usamos LANCZOS para mantener la calidad en la reducción extrema
             composite = composite.resize(target_size, Image.Resampling.LANCZOS)
-            
+
             # 3. Normalizar y aplanar (0-1)
             data = np.array(composite).flatten() / 255.0
             # Invertir colores: PokeAPI tiene fondo blanco, queremos bits 'encendidos' en el objeto
             data = 1.0 - data
-            
+
             processed_images.append(data)
             names.append(f"Poke_{p_id}")
         except Exception as e:
             print(f"[ERROR] No se pudo procesar el Pokémon {p_id}: {e}")
 
-    return np.array(processed_images).astype('float32'), names
+    return np.array(processed_images).astype("float32"), names
+
 
 def convert_dataset_img(dir_path, subclass, dim):
     """
@@ -686,3 +690,119 @@ def convert_dataset_img(dir_path, subclass, dim):
             print(f"[ERROR] No se pudo procesar la imagen {nombre}: {e}")
 
     return np.array(processed_images).astype("float32"), names
+
+
+def cargar_imagenes(
+    data_dir: str,
+    clases: list[str],
+    target_size: int,
+    max_por_clase: int | None = None,
+    validation_split: float = 0.2,
+    random_seed: int = 42,
+) -> tuple:
+    """
+    Carga imágenes en escala de grises desde subcarpetas de data_dir,
+    las redimensiona a (target_size, target_size) y las prepara para
+    clasificación con one-hot encoding.
+
+    Retorna
+    -------
+    (x_train, y_train), (x_val, y_val)
+    """
+    from PIL import Image
+
+    target_hw = (target_size, target_size)
+    n_clases = len(clases)
+    todas_imgs = []
+    todas_etqs = []
+
+    extensiones = (".png", ".jpg", ".jpeg", ".bmp", ".gif")
+
+    for idx, cls_nombre in enumerate(clases):
+        carpeta = os.path.join(data_dir, cls_nombre)
+        if not os.path.isdir(carpeta):
+            print(f"[AVISO] Carpeta '{cls_nombre}' no existe. Se saltea.")
+            continue
+
+        archivos = sorted(
+            [f for f in os.listdir(carpeta) if f.lower().endswith(extensiones)]
+        )
+
+        if max_por_clase is not None:
+            archivos = archivos[:max_por_clase]
+
+        print(f"  [{cls_nombre}] ({len(archivos)} imgs)")
+
+        for nombre in archivos:
+            try:
+                ruta = os.path.join(carpeta, nombre)
+                img = Image.open(ruta)
+
+                # Forzar escala de grises
+                if img.mode != "L":
+                    img = img.convert("L")
+
+                # Redimensionar
+                img = img.resize(target_hw, Image.Resampling.LANCZOS)
+
+                # Normalizar a [0,1] y agregar canal: (H, W) → (H, W, 1)
+                arr = np.array(img).astype("float32") / 255.0
+                arr = np.expand_dims(arr, axis=-1)
+
+                todas_imgs.append(arr)
+                todas_etqs.append(idx)
+
+            except Exception as e:
+                print(f"    [ERROR] {nombre}: {e}")
+
+    if not todas_imgs:
+        raise ValueError("No se cargó ninguna imagen.")
+
+    x = np.array(todas_imgs)
+    y = np.array(todas_etqs)
+
+    # Mezclar con seed fija
+    np.random.seed(random_seed)
+    indices = np.random.permutation(len(x))
+    x, y = x[indices], y[indices]
+
+    # Dividir train/val
+    split = int(len(x) * (1 - validation_split))
+    x_train, x_val = x[:split], x[split:]
+    y_train, y_val = y[:split], y[split:]
+
+   
+    print(f"\n Total: {len(x)} imgs | Train: {len(x_train)} | Val: {len(x_val)}")
+    print(f"  Shape: ({target_size}, {target_size}, 1)  |  Clases: {clases}")
+
+    return (x_train, y_train), (x_val, y_val)
+
+
+def graficar_historial(historia, guardar=None):
+    epochs = range(1, len(historia.history["loss"]) + 1)
+    plt.figure(figsize=(12, 4))
+
+    # Loss
+    plt.subplot(1, 2, 1)
+    plt.plot(epochs, historia.history["loss"], "b-", label="Train")
+    plt.plot(epochs, historia.history["val_loss"], "r-", label="Val")
+    plt.title("Pérdida (Loss)")
+    plt.xlabel("Épocas")
+    plt.ylabel("Loss")
+    plt.legend()
+    plt.grid(True, alpha=0.3)
+
+    # Accuracy
+    plt.subplot(1, 2, 2)
+    plt.plot(epochs, historia.history["accuracy"], "b-", label="Train")
+    plt.plot(epochs, historia.history["val_accuracy"], "r-", label="Val")
+    plt.title("Precisión (Accuracy)")
+    plt.xlabel("Épocas")
+    plt.ylabel("Accuracy")
+    plt.legend()
+    plt.grid(True, alpha=0.3)
+
+    plt.tight_layout()
+    if guardar:
+        plt.savefig(guardar, dpi=150, bbox_inches="tight")
+    plt.show()

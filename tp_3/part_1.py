@@ -67,7 +67,7 @@ def tp3():
     modelos_presentes = all(os.path.exists(os.path.join(models_path, f)) for f in model_files)
 
     if RECUPERAR_MODELO and modelos_presentes:
-        print(f"\n[INFO] Recuperando modelos guardados desde: {models_path}")
+        print(f"\n Recuperando modelos guardados desde: {models_path}")
         autoencoder = keras.models.load_model(os.path.join(models_path, "autoencoder_completo.keras"))
         encoder = keras.models.load_model(os.path.join(models_path, "encoder.keras"))
         decoder = keras.models.load_model(os.path.join(models_path, "decoder.keras"))
@@ -91,7 +91,7 @@ def tp3():
         autoencoder.save(os.path.join(models_path, "autoencoder_completo.keras"))
         encoder.save(os.path.join(models_path, "encoder.keras"))
         decoder.save(os.path.join(models_path, "decoder.keras"))
-        print(f"\n[INFO] Modelos exportados exitosamente en: {models_path}")
+        print(f"\n Modelos exportados exitosamente en: {models_path}")
 
 
     # --- FASE DE ANÁLISIS Y GENERACIÓN ---
