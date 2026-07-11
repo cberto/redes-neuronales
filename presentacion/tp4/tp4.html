@@ -1,0 +1,957 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Redes Convolucionales · TP4 — paso a paso</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,900;1,9..144,500&family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<style>
+/* ============================== TOKENS ============================== */
+:root{
+  --paper:#f4efe3;
+  --paper-2:#ece5d4;
+  --ink:#101a2e;
+  --ink-soft:#33405a;
+  --ink-faint:#6b7791;
+  --line:#cdc4ad;
+  --line-strong:#b6a988;
+
+  --blue:#2347d9;        /* conv */
+  --blue-bright:#3b6bff;
+  --red:#d6304a;         /* error / overfitting */
+  --amber:#e0852a;       /* pooling */
+  --teal:#16967a;        /* marca / CNN */
+  --violet:#8b2fb0;      /* transfer learning */
+
+  --shadow: 0 1px 0 #fffdf6 inset, 0 18px 40px -22px rgba(16,26,46,.45);
+  --radius:18px;
+  --maxw:1180px;
+  --font-display:'Fraunces',Georgia,serif;
+  --font-body:'Hanken Grotesk',system-ui,sans-serif;
+  --font-mono:'JetBrains Mono',monospace;
+}
+
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;
+  font-family:var(--font-body);
+  color:var(--ink);
+  background:var(--paper);
+  background-image:
+    linear-gradient(rgba(16,26,46,.045) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(16,26,46,.045) 1px,transparent 1px);
+  background-size:26px 26px;
+  line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+  overflow-x:hidden;
+}
+body::before{
+  content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;opacity:.45;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.25'/%3E%3C/svg%3E");
+  mix-blend-mode:multiply;
+}
+::selection{background:var(--teal);color:#fff}
+
+a{color:inherit}
+h1,h2,h3{font-family:var(--font-display);font-weight:900;line-height:1.02;letter-spacing:-.02em;margin:0}
+p{margin:0 0 1em}
+
+/* ============================== NAV ============================== */
+nav{
+  position:fixed;top:0;left:0;right:0;z-index:100;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px clamp(16px,4vw,46px);
+  background:rgba(244,239,227,.82);
+  backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--line);
+  transition:transform .4s ease;
+}
+nav .brand{font-family:var(--font-mono);font-weight:700;font-size:.82rem;letter-spacing:.12em;text-transform:uppercase;display:flex;gap:.6em;align-items:center}
+nav .brand .dot{width:11px;height:11px;border-radius:50%;background:var(--teal);box-shadow:0 0 0 3px rgba(22,150,122,.18)}
+nav ul{display:flex;gap:clamp(8px,1.6vw,22px);list-style:none;margin:0;padding:0;font-family:var(--font-mono);font-size:.72rem;letter-spacing:.04em;text-transform:uppercase}
+nav ul a{text-decoration:none;color:var(--ink-soft);position:relative;padding:4px 2px;transition:color .2s}
+nav ul a::after{content:"";position:absolute;left:0;bottom:-2px;height:2px;width:0;background:var(--teal);transition:width .25s}
+nav ul a:hover{color:var(--ink)}
+nav ul a:hover::after{width:100%}
+@media(max-width:900px){nav ul{display:none}}
+
+/* ============================== LAYOUT ============================== */
+section{position:relative;padding:clamp(70px,9vw,130px) clamp(16px,4vw,46px)}
+.wrap{max-width:var(--maxw);margin:0 auto}
+.eyebrow{font-family:var(--font-mono);font-size:.76rem;letter-spacing:.22em;text-transform:uppercase;color:var(--teal);font-weight:700;display:inline-flex;align-items:center;gap:.7em;margin-bottom:1.1em}
+.eyebrow::before{content:"";width:34px;height:2px;background:var(--teal)}
+
+.reveal{opacity:0;transform:translateY(34px);transition:opacity .7s cubic-bezier(.2,.7,.2,1),transform .7s cubic-bezier(.2,.7,.2,1)}
+.reveal.in{opacity:1;transform:none}
+.reveal.d1{transition-delay:.08s}.reveal.d2{transition-delay:.16s}.reveal.d3{transition-delay:.24s}.reveal.d4{transition-delay:.32s}.reveal.d5{transition-delay:.4s}
+
+/* ============================== HERO ============================== */
+#hero{min-height:100vh;display:flex;align-items:center;padding-top:120px;overflow:hidden}
+#hero .wrap{position:relative;z-index:2}
+.hero-tag{font-family:var(--font-mono);font-size:.8rem;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:1.4em;display:flex;flex-wrap:wrap;gap:.5em 1.4em}
+.hero-tag b{color:var(--teal)}
+#hero h1{font-size:clamp(2.6rem,9vw,8rem);letter-spacing:-.035em}
+#hero h1 .ital{font-style:italic;font-weight:500;color:var(--teal)}
+.hero-sub{font-family:var(--font-display);font-style:italic;font-weight:500;font-size:clamp(1.2rem,3vw,2rem);color:var(--ink-soft);max-width:36ch;margin-top:.5em}
+.hero-meta{display:flex;flex-wrap:wrap;gap:14px;margin-top:2.6em}
+.chip{font-family:var(--font-mono);font-size:.78rem;letter-spacing:.04em;background:var(--ink);color:var(--paper);padding:9px 16px;border-radius:40px;display:inline-flex;align-items:center;gap:.6em}
+.chip.ghost{background:transparent;color:var(--ink);border:1.5px solid var(--line-strong)}
+.chip .k{color:var(--teal)}
+.scroll-hint{position:absolute;bottom:30px;left:clamp(16px,4vw,46px);font-family:var(--font-mono);font-size:.7rem;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);display:flex;align-items:center;gap:.8em}
+.scroll-hint .bar{width:1px;height:34px;background:var(--line-strong);position:relative;overflow:hidden}
+.scroll-hint .bar::after{content:"";position:absolute;top:-50%;left:0;width:100%;height:50%;background:var(--teal);animation:drip 1.8s infinite}
+@keyframes drip{0%{top:-50%}100%{top:100%}}
+.hero-net{position:absolute;inset:0;z-index:1;opacity:.5;pointer-events:none}
+
+/* ============================== MÉTODO / DIAGRAMA ============================== */
+.lead{font-size:clamp(1.15rem,2.4vw,1.5rem);max-width:36ch;font-family:var(--font-display);font-weight:400;color:var(--ink);line-height:1.3}
+.grid-2{display:grid;grid-template-columns:1.05fr .95fr;gap:clamp(28px,5vw,64px);align-items:center}
+@media(max-width:900px){.grid-2{grid-template-columns:1fr}}
+
+.netcard{
+  background:linear-gradient(165deg,#fffdf7,#f0e9d8);
+  border:1px solid var(--line);border-radius:var(--radius);
+  box-shadow:var(--shadow);padding:24px;position:relative;
+}
+.netcard .head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-family:var(--font-mono);font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint)}
+.controls{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap}
+.btn{
+  font-family:var(--font-mono);font-size:.76rem;font-weight:700;letter-spacing:.04em;
+  border:1.5px solid var(--ink);background:var(--ink);color:var(--paper);
+  padding:10px 16px;border-radius:40px;cursor:pointer;transition:transform .15s,box-shadow .2s,background .2s;
+  display:inline-flex;align-items:center;gap:.5em;text-decoration:none;
+}
+.btn:hover{transform:translateY(-2px);box-shadow:0 10px 20px -10px rgba(16,26,46,.6)}
+.btn.alt{background:transparent;color:var(--ink)}
+.btn.fwd{border-color:var(--teal);background:var(--teal)}
+
+svg.cnn text{font-family:var(--font-mono);font-weight:700}
+.cstage rect{transition:fill .3s,stroke .3s,opacity .3s,filter .3s}
+.cstage.lit rect{filter:drop-shadow(0 0 8px rgba(22,150,122,.5))}
+.cstage .lab{fill:var(--ink-faint);font-size:9px;letter-spacing:.04em;text-transform:uppercase}
+.cflow{stroke:var(--line-strong);stroke-width:1.6;opacity:.5;transition:stroke .3s,opacity .3s}
+.cflow.on{stroke:var(--teal);opacity:1}
+
+/* flow strip */
+.flow{display:flex;flex-wrap:wrap;align-items:stretch;gap:10px;margin-top:34px}
+.flow .step{flex:1 1 120px;background:#fffdf7;border:1px solid var(--line);border-radius:14px;padding:14px 16px;position:relative;min-width:120px}
+.flow .step .lab{font-family:var(--font-mono);font-size:.66rem;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint)}
+.flow .step .val{font-family:var(--font-display);font-size:1.35rem;font-weight:600;margin-top:2px}
+.flow .step.b1{border-bottom:3px solid var(--blue)}
+.flow .step.b2{border-bottom:3px solid var(--amber)}
+.flow .step.b3{border-bottom:3px solid var(--teal)}
+.flow .arrow{align-self:center;color:var(--teal);font-size:1.3rem}
+@media(max-width:640px){.flow .arrow{transform:rotate(90deg)}}
+
+/* explicación simple */
+.simple{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:42px}
+@media(max-width:760px){.simple{grid-template-columns:1fr}}
+.scard{background:#fffdf7;border:1px solid var(--line);border-radius:var(--radius);padding:24px 26px;position:relative;box-shadow:var(--shadow)}
+.scard .tag{font-family:var(--font-mono);font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;font-weight:700;display:inline-flex;align-items:center;gap:.5em;margin-bottom:.7em}
+.scard h4{font-family:var(--font-display);font-weight:600;font-size:1.25rem;margin:0 0 .5em}
+.scard p{font-size:.96rem;color:var(--ink-soft);margin:0 0 .7em}
+.scard p:last-child{margin-bottom:0}
+.scard .hl{background:rgba(22,150,122,.14);padding:1px 5px;border-radius:5px;font-weight:600;color:var(--ink)}
+
+/* minihead + símbolos + fórmulas */
+.minihead{font-family:var(--font-mono);font-size:.78rem;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint);font-weight:700;margin:46px 0 6px;display:flex;align-items:center;gap:.7em}
+.minihead::before{content:"";width:22px;height:2px;background:var(--ink-faint)}
+.symbols{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0 0}
+.sym{display:flex;align-items:baseline;gap:.55em;background:var(--paper-2);border:1px solid var(--line);border-radius:10px;padding:8px 13px}
+.sym b{font-family:var(--font-mono);font-size:1rem;color:var(--teal)}
+.sym span{font-size:.82rem;color:var(--ink-soft)}
+.fcards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-top:20px}
+.fcard{background:#fffdf7;border:1px solid var(--line);border-left:4px solid var(--teal);border-radius:14px;padding:18px 20px;box-shadow:var(--shadow)}
+.fcard h4{font-family:var(--font-mono);font-size:.74rem;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint);margin:0 0 10px;font-weight:700;display:flex;align-items:center;gap:.5em}
+.fcard .num{width:22px;height:22px;border-radius:50%;background:var(--teal);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:.72rem}
+.formula{font-family:var(--font-mono);font-size:1rem;background:var(--paper-2);border-radius:8px;padding:10px 12px;color:var(--ink);overflow-x:auto}
+.fcard p{font-size:.9rem;color:var(--ink-soft);margin:.7em 0 0}
+.formula sub{font-size:.7em}.formula sup{font-size:.7em}
+
+/* ============================== ALGORITMO ============================== */
+.algo{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;margin-top:8px;counter-reset:step}
+.astep{background:#fffdf7;border:1px solid var(--line);border-radius:14px;padding:20px 22px 18px;position:relative;overflow:hidden;transition:transform .25s,box-shadow .25s}
+.astep:hover{transform:translateY(-4px);box-shadow:0 18px 30px -20px rgba(16,26,46,.5)}
+.astep::before{counter-increment:step;content:counter(step,decimal-leading-zero);position:absolute;top:-14px;right:6px;font-family:var(--font-display);font-weight:900;font-size:3.6rem;color:rgba(22,150,122,.12)}
+.astep h4{font-size:1.02rem;font-family:var(--font-display);font-weight:600;margin-bottom:.3em}
+.astep p{font-size:.9rem;color:var(--ink-soft);margin:0}
+.astep code{font-family:var(--font-mono);font-size:.82rem;background:var(--paper-2);padding:1px 5px;border-radius:5px}
+
+/* ============================== SECCIONES / EXERCISES ============================== */
+.ex-head{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;flex-wrap:wrap;border-bottom:2px solid var(--ink);padding-bottom:20px;margin-bottom:40px}
+.ex-num{font-family:var(--font-display);font-weight:900;font-size:clamp(3rem,9vw,7rem);line-height:.8;letter-spacing:-.04em}
+.ex-title{font-size:clamp(1.5rem,4vw,2.6rem)}
+.ex-pill{font-family:var(--font-mono);font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;padding:6px 14px;border-radius:40px;color:#fff;font-weight:700}
+.ex-pill.wip{background:transparent;color:var(--violet);border:1.5px dashed var(--violet)}
+
+.exgrid{display:grid;grid-template-columns:1fr 1fr;gap:clamp(22px,4vw,42px)}
+@media(max-width:880px){.exgrid{grid-template-columns:1fr}}
+
+.panel{background:#fffdf7;border:1px solid var(--line);border-radius:var(--radius);padding:26px;box-shadow:var(--shadow)}
+.panel h3{font-size:1.15rem;font-family:var(--font-display);font-weight:600;margin-bottom:.6em;display:flex;align-items:center;gap:.55em;flex-wrap:wrap}
+.panel h3 .tg{font-family:var(--font-mono);font-size:.62rem;letter-spacing:.08em;text-transform:uppercase;padding:3px 8px;border-radius:6px;background:var(--paper-2);color:var(--ink-faint);font-weight:700}
+.panel ul{margin:0;padding-left:1.1em}
+.panel li{margin-bottom:.55em;color:var(--ink-soft)}
+.panel li b{color:var(--ink)}
+
+.spec{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px}
+.spec div{background:var(--paper-2);border-radius:10px;padding:8px 12px;font-family:var(--font-mono);font-size:.78rem}
+.spec div span{color:var(--ink-faint);display:block;font-size:.64rem;letter-spacing:.06em;text-transform:uppercase}
+.spec div b{font-size:1rem}
+
+/* code block */
+.code{background:#0e1828;border-radius:14px;overflow:hidden;border:1px solid #1d2c45;font-family:var(--font-mono);font-size:.78rem;line-height:1.65;box-shadow:0 24px 40px -26px rgba(16,26,46,.8)}
+.code .bar{display:flex;align-items:center;gap:7px;padding:11px 16px;background:#0a1220;border-bottom:1px solid #1d2c45}
+.code .bar i{width:11px;height:11px;border-radius:50%;display:inline-block}
+.code .bar .t{margin-left:auto;font-size:.7rem;color:#5b6b86;letter-spacing:.06em}
+.code pre{margin:0;padding:16px 18px;overflow-x:auto;color:#cdd9ee}
+.code .ln{display:block;padding:1px 8px;border-radius:4px}
+.tok-k{color:#6ea8ff}.tok-f{color:#79e0c4}.tok-s{color:#e0a96d}.tok-c{color:#5b6b86;font-style:italic}.tok-n{color:#d98fd0}.tok-v{color:#e7eefc}
+.codenote{display:flex;gap:10px;align-items:flex-start;margin-top:14px;font-size:.86rem;color:var(--ink-soft)}
+.codenote .b{flex:none;width:24px;height:24px;border-radius:7px;background:var(--teal);color:#fff;font-family:var(--font-mono);font-weight:700;display:flex;align-items:center;justify-content:center;font-size:.74rem}
+
+/* tabla de pruebas */
+.tbl-wrap{overflow-x:auto;border-radius:var(--radius);border:1px solid var(--line);box-shadow:var(--shadow);background:#fffdf7}
+table.pruebas{border-collapse:collapse;width:100%;font-size:.84rem;min-width:720px}
+table.pruebas th,table.pruebas td{padding:11px 13px;text-align:left;border-bottom:1px solid var(--line)}
+table.pruebas th{font-family:var(--font-mono);font-size:.66rem;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint);background:var(--paper-2)}
+table.pruebas td{color:var(--ink-soft)}
+table.pruebas td code{font-family:var(--font-mono);font-size:.8rem;background:var(--paper-2);padding:1px 5px;border-radius:5px;color:var(--ink)}
+table.pruebas tr.best{background:rgba(22,150,122,.10)}
+table.pruebas tr.best td:first-child{border-left:3px solid var(--teal)}
+table.pruebas tr.bad td:first-child{border-left:3px solid var(--red)}
+.tbl-badge{font-family:var(--font-mono);font-size:.6rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;background:var(--teal);color:#fff;padding:2px 7px;border-radius:20px;margin-left:.5em}
+
+/* figuras con imagen */
+.figcard{background:linear-gradient(165deg,#fffdf7,#f0e9d8);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px;text-align:center}
+.figcard img{display:block;width:100%;height:auto;border-radius:12px;background:#fff}
+.figcard .cap{font-family:var(--font-mono);font-size:.72rem;color:var(--ink-faint);margin-top:12px;line-height:1.5}
+.fig2{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+@media(max-width:760px){.fig2{grid-template-columns:1fr}}
+
+.result{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;margin-top:4px}
+.metric{background:linear-gradient(160deg,#fffdf7,#f0e9d8);border:1px solid var(--line);border-radius:14px;padding:16px 18px;text-align:left}
+.metric .v{font-family:var(--font-display);font-weight:900;font-size:2rem;line-height:1;letter-spacing:-.02em}
+.metric .l{font-family:var(--font-mono);font-size:.66rem;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint);margin-top:6px}
+
+/* clases (chips de animales) */
+.clases{display:flex;flex-wrap:wrap;gap:12px;margin-top:6px}
+.clase{display:flex;align-items:center;gap:.6em;background:#fffdf7;border:1px solid var(--line);border-radius:40px;padding:9px 18px 9px 12px;font-weight:600;box-shadow:var(--shadow)}
+.clase .em{font-size:1.3rem}
+.clase.ghost{border-style:dashed;color:var(--ink-faint);font-weight:500}
+
+/* ============================== CONCLUSION ============================== */
+.concl{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px}
+.ccard{background:#fffdf7;border:1px solid var(--line);border-radius:14px;padding:24px;border-top:4px solid var(--teal)}
+.ccard .ic{font-family:var(--font-display);font-weight:900;font-size:1.6rem;color:var(--teal)}
+.ccard h4{font-family:var(--font-display);font-weight:600;font-size:1.1rem;margin:.4em 0}
+.ccard p{font-size:.9rem;color:var(--ink-soft);margin:0}
+
+.glossary{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-top:14px}
+.gterm{background:var(--paper-2);border-radius:12px;padding:14px 16px}
+.gterm b{font-family:var(--font-mono);color:var(--teal);font-size:.9rem}
+.gterm p{margin:.3em 0 0;font-size:.85rem;color:var(--ink-soft)}
+
+/* estado / pendientes */
+.status{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:8px}
+.stcard{background:#fffdf7;border:1px solid var(--line);border-radius:14px;padding:18px 20px}
+.stcard .h{font-family:var(--font-mono);font-size:.7rem;letter-spacing:.06em;text-transform:uppercase;font-weight:700;display:flex;align-items:center;gap:.5em;margin-bottom:.5em}
+.stcard.ok{border-left:4px solid var(--teal)}
+.stcard.wip{border-left:4px solid var(--amber)}
+.stcard.todo{border-left:4px solid var(--red)}
+.stcard p{margin:0;font-size:.88rem;color:var(--ink-soft)}
+.badge-st{font-family:var(--font-mono);font-size:.6rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:2px 8px;border-radius:20px}
+.badge-st.ok{background:var(--teal);color:#fff}
+.badge-st.wip{background:var(--amber);color:#fff}
+.badge-st.todo{background:var(--red);color:#fff}
+
+/* lámina resumen (poster) */
+.poster{position:relative;max-width:920px;margin:18px auto 0;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow)}
+.poster img{display:block;width:100%;height:auto}
+.poster-cap{font-family:var(--font-mono);font-size:.74rem;color:var(--ink-faint);text-align:center;margin:12px auto 0;max-width:820px;line-height:1.6}
+.poster-ctrl{display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap;margin:14px auto 0;max-width:760px}
+
+footer{padding:40px clamp(16px,4vw,46px) 60px;border-top:1px solid var(--line);font-family:var(--font-mono);font-size:.76rem;color:var(--ink-faint);text-align:center}
+footer .big{font-family:var(--font-display);font-weight:900;font-size:clamp(2rem,7vw,5rem);color:var(--ink);letter-spacing:-.03em;line-height:1;margin-bottom:.3em}
+
+.secnum{position:absolute;top:clamp(40px,7vw,90px);right:clamp(16px,4vw,46px);font-family:var(--font-display);font-weight:900;font-size:clamp(2.4rem,5vw,4rem);color:var(--line);opacity:.7;z-index:0;will-change:transform}
+
+/* ============================== INTERACTIVO ============================== */
+#progress{position:fixed;top:0;left:0;height:3px;width:0;z-index:200;background:linear-gradient(90deg,var(--blue),var(--amber),var(--teal));transition:width .08s linear}
+nav ul a.active{color:var(--ink)}
+nav ul a.active::after{width:100%}
+.metric,.gterm,.ccard,.scard,.fcard,.sym,.stcard,.clase{transition:transform .22s cubic-bezier(.2,.7,.2,1),box-shadow .22s}
+.metric:hover,.gterm:hover,.ccard:hover,.scard:hover,.fcard:hover,.stcard:hover{transform:translateY(-4px);box-shadow:0 18px 30px -20px rgba(16,26,46,.5)}
+.sym:hover,.clase:hover{transform:translateY(-2px)}
+
+#recordatorio{position:fixed;bottom:20px;right:20px;z-index:150;max-width:300px;background:var(--ink);color:var(--paper);border-radius:14px;padding:14px 30px 14px 44px;box-shadow:0 18px 40px -18px rgba(16,26,46,.7);font-size:.86rem;line-height:1.45;opacity:0;transform:translateY(10px);pointer-events:none;transition:opacity .3s,transform .3s}
+#recordatorio.show{opacity:1;transform:none;pointer-events:auto}
+#recordatorio::before{content:"💡";position:absolute;left:14px;top:13px}
+#recordatorio .rtitle{font-family:var(--font-mono);font-size:.62rem;letter-spacing:.12em;text-transform:uppercase;color:#5fd6ba;font-weight:700;margin-bottom:3px}
+#recordatorio .rclose{position:absolute;top:6px;right:11px;cursor:pointer;color:var(--ink-faint);font-size:1.1rem;line-height:1}
+#recordatorio .rclose:hover{color:var(--paper)}
+#recToggle{position:fixed;bottom:20px;right:20px;z-index:149;width:50px;height:50px;border-radius:50%;background:var(--ink);color:var(--paper);border:none;cursor:pointer;font-size:1.3rem;box-shadow:0 12px 28px -12px rgba(16,26,46,.7);display:none;align-items:center;justify-content:center}
+@media(max-width:760px){#recordatorio{max-width:210px;font-size:.78rem}}
+@media(prefers-reduced-motion:reduce){*{animation-duration:.001ms!important;transition-duration:.001ms!important}}
+</style>
+</head>
+<body>
+<div id="progress"></div>
+<div id="recordatorio">
+  <span class="rclose" id="recClose">×</span>
+  <div class="rtitle">Recordatorio</div>
+  <div class="rbody">Scrolleá para empezar.</div>
+</div>
+<button id="recToggle" title="Mostrar recordatorio">💡</button>
+
+<!-- ============ NAV ============ -->
+<nav id="nav">
+  <div class="brand"><span class="dot"></span>TP4 · Convolucionales</div>
+  <ul>
+    <li><a href="#hero">Inicio</a></li>
+    <li><a href="#metodo">Qué es</a></li>
+    <li><a href="#datos">Datos</a></li>
+    <li><a href="#arq">Arquitectura</a></li>
+    <li><a href="#pruebas">Pruebas</a></li>
+    <li><a href="#resultados">Resultados</a></li>
+    <li><a href="#transfer">Transfer</a></li>
+    <li><a href="#ayuda">Ayuda</a></li>
+    <li><a href="#conclusiones">Conclusión</a></li>
+  </ul>
+</nav>
+
+<!-- ============ HERO ============ -->
+<section id="hero">
+  <svg class="hero-net" viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid slice" id="heroNet"></svg>
+  <div class="wrap">
+    <div class="hero-tag reveal">
+      <span>Fundamentos de Redes Neuronales</span>
+      <span>·</span>
+      <span><b>UNAHUR</b> — Tec. en Inteligencia Artificial</span>
+    </div>
+    <h1 class="reveal d1">Redes<br><span class="ital">convolucionales</span></h1>
+    <p class="hero-sub reveal d2">Enseñarle a una red a <em>mirar</em> imágenes: reconocer un animal a partir de sus formas. El TP4, paso a paso.</p>
+    <div class="hero-meta reveal d3">
+      <span class="chip"><span class="k">TP</span> Trabajo Práctico 4</span>
+      <span class="chip ghost">Docente · Emiliano Churruca</span>
+      <span class="chip ghost">Entrega · 14 de julio 2026</span>
+    </div>
+    <div class="hero-meta reveal d4" style="margin-top:14px">
+      <span class="chip ghost">Integrantes: <span style="color:var(--teal);margin-left:.4em">Bertolani Camila · Molina Claudio</span></span>
+    </div>
+  </div>
+  <div class="scroll-hint"><span class="bar"></span>Scrolleá para empezar</div>
+</section>
+
+<!-- ============ MÉTODO ============ -->
+<section id="metodo">
+  <span class="secnum">00</span>
+  <div class="wrap">
+    <div class="eyebrow reveal">El método · una red que aprende a mirar</div>
+    <div class="grid-2">
+      <div>
+        <h2 class="reveal d1" style="font-size:clamp(2rem,5vw,3.4rem)">¿Qué es una red convolucional?</h2>
+        <p class="lead reveal d2" style="margin-top:24px">Es una red pensada para <em>imágenes</em>. En vez de mirar cada píxel suelto, aprende a detectar <b>formas</b>: primero bordes, después texturas, después partes enteras (una oreja, un ala).</p>
+        <p class="reveal d3" style="margin-top:18px;color:var(--ink-soft);max-width:44ch">La clave es la <b style="color:var(--blue)">convolución</b>: una ventanita chiquita (el <b>filtro</b>) recorre toda la imagen buscando un patrón. Después el <b style="color:var(--amber)">pooling</b> achica el resultado quedándose con lo más fuerte. Repetís eso varias veces y al final unas capas normales deciden <b>qué animal es</b>.</p>
+      </div>
+      <div class="netcard reveal d2">
+        <div class="head"><span>Imagen 128×128 → 4 clases</span><span id="netState">listo</span></div>
+        <svg class="cnn" id="cnnNet" viewBox="0 0 480 300" aria-label="Pipeline CNN animado"></svg>
+        <div class="controls">
+          <button class="btn fwd" id="btnFwd">▶ Ver cómo clasifica</button>
+          <button class="btn alt" id="btnReset">Reiniciar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- en palabras simples -->
+    <div class="simple">
+      <div class="scard reveal" style="border-top:4px solid var(--blue)">
+        <div class="tag" style="color:var(--blue)">① La convolución · buscar patrones</div>
+        <h4>Una lupa que recorre toda la foto</h4>
+        <p>Imaginá una <span class="hl">lupa chiquita</span> (de 3×3 píxeles) que vas deslizando por toda la imagen. En cada lugar pregunta: “¿acá hay un borde? ¿una curva?”. Donde encuentra lo que busca, se enciende.</p>
+        <p>La red no usa una sola lupa: usa <span class="hl">muchas a la vez</span> (32, 64, 128…), cada una entrenada para detectar un patrón distinto. Eso es un filtro (o kernel).</p>
+      </div>
+      <div class="scard reveal d1" style="border-top:4px solid var(--amber)">
+        <div class="tag" style="color:var(--amber)">② El pooling · resumir</div>
+        <h4>Quedarse con lo importante y achicar</h4>
+        <p>Después de la lupa, el <b>MaxPooling</b> agarra cada cuadradito de 2×2 y <span class="hl">se queda sólo con el valor más alto</span>, tirando los otros 3. Así la imagen se hace más chica sin perder lo esencial.</p>
+        <p>🔎 <b>Como mirar de lejos:</b> perdés el detalle fino pero seguís reconociendo la forma. Además la vuelve <b>tolerante</b>: no importa si el animal está un poco corrido.</p>
+      </div>
+    </div>
+
+    <!-- flow strip -->
+    <div class="minihead reveal" style="margin-top:46px">El recorrido de una imagen, de la foto a la respuesta</div>
+    <div class="flow reveal d2">
+      <div class="step b3"><div class="lab">entrada</div><div class="val">imagen</div></div>
+      <div class="arrow">→</div>
+      <div class="step b1"><div class="lab">convolución</div><div class="val">filtros</div></div>
+      <div class="arrow">→</div>
+      <div class="step b2"><div class="lab">pooling</div><div class="val">achica</div></div>
+      <div class="arrow">→</div>
+      <div class="step b3"><div class="lab">flatten</div><div class="val">a vector</div></div>
+      <div class="arrow">→</div>
+      <div class="step b1"><div class="lab">densas</div><div class="val">deciden</div></div>
+      <div class="arrow">→</div>
+      <div class="step b2"><div class="lab">softmax</div><div class="val">clase</div></div>
+    </div>
+
+    <!-- símbolos -->
+    <div class="minihead reveal">Cómo leer los términos — qué es cada cosa</div>
+    <div class="symbols reveal d1">
+      <div class="sym"><b>filtro / kernel</b><span>la ventanita que busca un patrón</span></div>
+      <div class="sym"><b>feature map</b><span>el mapa de dónde apareció ese patrón</span></div>
+      <div class="sym"><b>stride</b><span>de a cuántos píxeles avanza la ventana</span></div>
+      <div class="sym"><b>padding</b><span>si se rellena el borde o no</span></div>
+      <div class="sym"><b>ReLU</b><span>deja pasar lo positivo, apaga lo negativo</span></div>
+      <div class="sym"><b>softmax</b><span>reparte 100% de probabilidad entre las clases</span></div>
+    </div>
+
+    <!-- fórmulas / conceptos -->
+    <div class="minihead reveal" style="margin-top:34px">Las mismas ideas, un poco más formales</div>
+    <div class="fcards">
+      <div class="fcard reveal">
+        <h4><span class="num">1</span> Convolución</h4>
+        <div class="formula">salida = Σ (ventana × filtro)</div>
+        <p>El filtro se multiplica píxel a píxel con la ventana y se suman. Un número alto = “encontré el patrón acá”.</p>
+      </div>
+      <div class="fcard reveal d1" style="border-left-color:var(--amber)">
+        <h4><span class="num" style="background:var(--amber)">2</span> MaxPooling</h4>
+        <div class="formula">salida = max(ventana 2×2)</div>
+        <p>De cada 4 píxeles se queda con el mayor. Reduce el tamaño a la mitad y da robustez.</p>
+      </div>
+      <div class="fcard reveal d2">
+        <h4><span class="num">3</span> ReLU</h4>
+        <div class="formula">g(x) = max(0, x)</div>
+        <p>La activación. Apaga los valores negativos y deja pasar los positivos. Simple y rápida.</p>
+      </div>
+      <div class="fcard reveal d2">
+        <h4><span class="num">4</span> Softmax</h4>
+        <div class="formula">O<sub>i</sub> = e<sup>z<sub>i</sub></sup> / Σ e<sup>z<sub>j</sub></sup></div>
+        <p>Convierte las salidas en probabilidades que suman 1. Gana la clase con el valor más alto.</p>
+      </div>
+    </div>
+
+    <!-- lámina resumen: poster teórico -->
+    <div class="minihead reveal" style="margin-top:50px">Toda la teoría de CNN, en una sola lámina</div>
+    <figure class="poster reveal d1" id="poster">
+      <img src="teoria-cnn.png" alt="Lámina resumen de redes convolucionales: qué es, arquitectura general (conv, ReLU, pooling, flatten, densa, softmax), convolución y filtro, paso a paso, pooling, conceptos clave (stride, padding, filtros múltiples), utilidad, aplicaciones y preguntas de examen" loading="lazy" />
+    </figure>
+    <figcaption class="poster-cap reveal">Entra la imagen → capas convolucionales con filtros que extraen características → ReLU → pooling que resume y achica → se repite → Flatten a vector → capas densas → softmax que da la clase. Todo lo que sigue abajo es esto mismo, aplicado a nuestro problema.</figcaption>
+    <div class="poster-ctrl reveal">
+      <a class="btn alt" href="teoria-cnn.png" target="_blank" rel="noopener">⤢ ver completa</a>
+    </div>
+  </div>
+</section>
+
+<!-- ============ DATOS ============ -->
+<section id="datos" style="background:var(--paper-2)">
+  <span class="secnum">01</span>
+  <div class="wrap">
+    <div class="eyebrow reveal">Los datos · qué le mostramos a la red</div>
+    <h2 class="reveal d1" style="font-size:clamp(2rem,5vw,3.2rem);max-width:20ch">Fotos de animales, divididas en entrenar y probar</h2>
+    <p class="reveal d2" style="max-width:72ch;color:var(--ink-soft);margin-top:16px">
+      Trabajamos con un conjunto de imágenes de animales. Cada foto se pasa a <b>escala de grises</b> y se redimensiona a <b>128×128</b> píxeles. Como pide la consigna, separamos los datos en dos grupos: <b>80% para entrenar</b> y <b>20% para validar</b> (probar con imágenes que la red nunca vio).
+    </p>
+
+    <div class="exgrid" style="margin-top:36px">
+      <div class="panel reveal d1">
+        <h3>Las clases que usamos <span class="tg">salida</span></h3>
+        <p style="color:var(--ink-soft)">La salida es <b>one-hot</b>: un vector con un 1 en la clase correcta y 0 en el resto. Hoy tenemos <b>4 clases</b> funcionando:</p>
+        <div class="clases">
+          <span class="clase"><span class="em">🐱</span> Gatos</span>
+          <span class="clase"><span class="em">🐦</span> Aves</span>
+          <span class="clase"><span class="em">🐴</span> Caballos</span>
+          <span class="clase"><span class="em">🐢</span> Tortugas</span>
+        </div>
+        <p style="color:var(--ink-soft);margin-top:16px;border-left:3px solid var(--amber);padding:8px 0 8px 14px"><b>Ojo, pendiente:</b> la consigna pide una salida de <b>8 neuronas</b> (8 categorías de animales). Nosotros arrancamos probando con 4 para afinar la arquitectura; falta <b>sumar las 4 clases restantes</b> para llegar a las 8.</p>
+      </div>
+      <div class="reveal d2">
+        <div class="code">
+          <div class="bar"><i style="background:#ff5f56"></i><i style="background:#ffbd2e"></i><i style="background:#27c93f"></i><span class="t">tp_4/part_1.py · datos</span></div>
+          <pre><code><span class="ln"><span class="tok-c"># 4 clases, 100 imágenes por clase</span></span>
+<span class="ln">CLASES = [<span class="tok-s">"Gatos"</span>,<span class="tok-s">"Aves"</span>,<span class="tok-s">"Caballos"</span>,<span class="tok-s">"Tortugas"</span>]</span>
+<span class="ln">IMG_SIZE = <span class="tok-n">128</span>        <span class="tok-c"># 128×128 px, escala de grises</span></span>
+<span class="ln">VALIDATION_SPLIT = <span class="tok-n">0.2</span>  <span class="tok-c"># 80% entrena / 20% valida</span></span>
+<span class="ln"></span>
+<span class="ln">(x_train,y_train),(x_val,y_val) = <span class="tok-f">cargar_imagenes</span>(</span>
+<span class="ln">    data_dir=<span class="tok-s">"./datasets/converted"</span>,</span>
+<span class="ln">    clases=CLASES, target_size=IMG_SIZE,</span>
+<span class="ln">    max_por_clase=<span class="tok-n">100</span>, validation_split=<span class="tok-n">0.2</span>)</span>
+<span class="ln"></span>
+<span class="ln"><span class="tok-c"># etiqueta one-hot: [1,0,0,0], [0,1,0,0], ...</span></span>
+<span class="ln">y_train = keras.utils.<span class="tok-f">to_categorical</span>(y_train, <span class="tok-n">4</span>)</span></code></pre>
+        </div>
+        <div class="codenote"><span class="b">i</span><span>Con <b>100 imágenes por clase</b> y sólo el 20% para validar, el set de prueba es chico (≈20 fotos por clase). Eso hace que los números salgan un poco ruidosos — lo tenemos en cuenta al leer los resultados.</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ ARQUITECTURA ============ -->
+<section id="arq">
+  <span class="secnum">02</span>
+  <div class="wrap">
+    <div class="ex-head reveal">
+      <div style="display:flex;align-items:flex-end;gap:20px">
+        <div class="ex-num" style="color:var(--blue)">1</div>
+        <div>
+          <span class="ex-pill" style="background:var(--blue)">Modelo 1 · CNN desde cero</span>
+          <h2 class="ex-title" style="margin-top:10px">La arquitectura que armamos a mano</h2>
+        </div>
+      </div>
+    </div>
+
+    <p class="reveal d1" style="max-width:70ch;color:var(--ink-soft);margin-bottom:30px">
+      La consigna pide <b>proponer e implementar una CNN propia</b> y documentar los hiperparámetros. Armamos un bloque repetible: <code>Conv2D → MaxPooling</code>, varias veces, después <code>Flatten</code> y unas capas densas que terminan en un <code>softmax</code> de 4 salidas.
+    </p>
+
+    <div class="exgrid">
+      <div class="panel reveal d1">
+        <h3>Cómo está armada <span class="tg">capas</span></h3>
+        <ul>
+          <li><b style="color:var(--blue)">3 bloques Conv2D + MaxPooling:</b> <code>[32, 64, 128]</code> filtros. Cada bloque aprende patrones más complejos que el anterior (bordes → texturas → formas).</li>
+          <li><b>Kernel</b> de 3×3 (la ventana estándar), activación <b>ReLU</b>, <b>padding "valid"</b> (sin rellenar bordes: la imagen se va achicando sola).</li>
+          <li><b style="color:var(--amber)">MaxPooling 2×2</b> después de cada conv: reduce el tamaño a la mitad cada vez.</li>
+          <li><b>Flatten</b> + 2 capas <b>densas</b> <code>[256, 128]</code> (ReLU) → salida <b>softmax</b> de 4.</li>
+          <li>Optimizador <b>Adam</b>, pérdida <b>categorical_crossentropy</b>, 50 épocas, batch de 16.</li>
+        </ul>
+        <div class="spec" style="margin-top:14px">
+          <div><span>entrada</span><b>128×128×1</b></div>
+          <div><span>conv</span><b>32·64·128</b></div>
+          <div><span>densas</span><b>256·128</b></div>
+          <div><span>salida</span><b>softmax 4</b></div>
+        </div>
+        <p style="color:var(--ink-soft);margin-top:16px;border-left:3px solid var(--blue);padding:8px 0 8px 14px">🧩 <b>¿Por qué categorical_crossentropy?</b> Es la pérdida natural cuando la salida es <b>softmax</b> y las etiquetas son one-hot: mide qué tan lejos está la probabilidad que dio la red de la respuesta correcta. Si la red dice “80% gato” y era gato, casi no penaliza; si dice “10% gato”, penaliza fuerte.</p>
+      </div>
+
+      <div class="reveal d2">
+        <div class="code">
+          <div class="bar"><i style="background:#ff5f56"></i><i style="background:#ffbd2e"></i><i style="background:#27c93f"></i><span class="t">tp_4/addons/functions.py · construir_cnn</span></div>
+          <pre><code><span class="ln">model = <span class="tok-f">Sequential</span>(name=<span class="tok-s">"CNN_Tp4"</span>)</span>
+<span class="ln">model.<span class="tok-f">add</span>(layers.<span class="tok-f">Input</span>(shape=(<span class="tok-n">128</span>,<span class="tok-n">128</span>,<span class="tok-n">1</span>)))</span>
+<span class="ln"></span>
+<span class="ln"><span class="tok-c"># 3 bloques: Conv2D + MaxPooling</span></span>
+<span class="ln"><span class="tok-k">for</span> i <span class="tok-k">in</span> <span class="tok-f">range</span>(n_conv):        <span class="tok-c"># [32,64,128]</span></span>
+<span class="ln">  model.<span class="tok-f">add</span>(layers.<span class="tok-f">Conv2D</span>(filters[i],</span>
+<span class="ln">      kernel_size=<span class="tok-n">3</span>, padding=<span class="tok-s">"valid"</span>,</span>
+<span class="ln">      activation=<span class="tok-s">"relu"</span>))</span>
+<span class="ln">  model.<span class="tok-f">add</span>(layers.<span class="tok-f">MaxPooling2D</span>(pool_size=<span class="tok-n">2</span>,</span>
+<span class="ln">      strides=<span class="tok-n">2</span>, padding=<span class="tok-s">"valid"</span>))</span>
+<span class="ln"></span>
+<span class="ln">model.<span class="tok-f">add</span>(layers.<span class="tok-f">Flatten</span>())</span>
+<span class="ln"><span class="tok-k">for</span> u <span class="tok-k">in</span> [<span class="tok-n">256</span>,<span class="tok-n">128</span>]:      <span class="tok-c"># densas</span></span>
+<span class="ln">  model.<span class="tok-f">add</span>(layers.<span class="tok-f">Dense</span>(u, activation=<span class="tok-s">"relu"</span>))</span>
+<span class="ln">model.<span class="tok-f">add</span>(layers.<span class="tok-f">Dense</span>(<span class="tok-n">4</span>, activation=<span class="tok-s">"softmax"</span>))</span>
+<span class="ln">model.<span class="tok-f">compile</span>(optimizer=<span class="tok-s">"adam"</span>,</span>
+<span class="ln">    loss=<span class="tok-s">"categorical_crossentropy"</span>)</span></code></pre>
+        </div>
+        <div class="codenote"><span class="b">i</span><span>La función <code>construir_cnn()</code> arma la red de forma <b>parametrizable</b>: le pasás las listas de filtros, kernels y padding, y ella genera la arquitectura. Así pudimos probar decenas de combinaciones cambiando sólo unos números.</span></div>
+      </div>
+    </div>
+
+    <!-- pasos del entrenamiento -->
+    <div class="minihead reveal" style="margin-top:50px">Los 5 pasos que corre <code style="font-family:var(--font-mono);color:var(--blue)">part_1.py</code></div>
+    <div class="algo" style="margin-top:20px">
+      <div class="astep reveal"><h4>Cargar imágenes</h4><p>Lee las fotos, las pasa a gris <code>128×128</code> y separa <code>80/20</code> entrenar/validar.</p></div>
+      <div class="astep reveal d1"><h4>Construir la red</h4><p><code>construir_cnn()</code> arma los bloques conv+pool, flatten y densas según los parámetros.</p></div>
+      <div class="astep reveal d2"><h4>Entrenar</h4><p><code>model.fit()</code> por 50 épocas, mirando el <code>val_accuracy</code> en cada una.</p></div>
+      <div class="astep reveal"><h4>Evaluar</h4><p>Matriz de confusión y reporte por clase (precision / recall) sobre validación.</p></div>
+      <div class="astep reveal d1"><h4>Visualizar</h4><p>Muestra 10 predicciones (real vs. predicho) y guarda el modelo <code>.keras</code>.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ PRUEBAS ============ -->
+<section id="pruebas" style="background:var(--paper-2)">
+  <span class="secnum">03</span>
+  <div class="wrap">
+    <div class="eyebrow reveal">Prueba y error · los experimentos</div>
+    <h2 class="reveal d1" style="font-size:clamp(2rem,5vw,3.2rem);max-width:22ch">Las 9 arquitecturas que probamos hasta la mejor</h2>
+    <p class="reveal d2" style="max-width:74ch;color:var(--ink-soft);margin-top:16px">
+      Como pide la consigna (<em>“guarden los registros de todas las arquitecturas que prueben”</em>), fuimos cambiando de a un parámetro por vez y anotando el <b>accuracy</b> y el <b>loss</b> de validación. Así entendimos qué ayudaba y qué no.
+    </p>
+
+    <div class="tbl-wrap reveal d1" style="margin-top:30px">
+      <table class="pruebas">
+        <thead>
+          <tr><th>#</th><th>IMG</th><th>Filtros</th><th>Kernel</th><th>Padding</th><th>Densas</th><th>Épocas</th><th>Acc</th><th>Loss</th><th>Nota</th></tr>
+        </thead>
+        <tbody>
+          <tr class="bad"><td>1</td><td>512</td><td>[32,64]</td><td>[7,7]</td><td>same</td><td>[256,128]</td><td>30</td><td>47.5%</td><td>4.25</td><td>peor</td></tr>
+          <tr><td>2</td><td>64</td><td>[32,64,128]</td><td>[3,3,3]</td><td>same</td><td>[256,128]</td><td>30</td><td>56.3%</td><td>2.50</td><td>3 capas</td></tr>
+          <tr><td>3</td><td>64</td><td>[32,64]</td><td>[5,3]</td><td>same</td><td>[256,128]</td><td>30</td><td>57.5%</td><td>2.93</td><td>—</td></tr>
+          <tr><td>4</td><td>64</td><td>[32,64]</td><td>[3,3]</td><td>same</td><td>[64,32]</td><td>30</td><td>56.3%</td><td>2.16</td><td>mejor loss</td></tr>
+          <tr><td>5</td><td>128</td><td>[32,64]</td><td>[3,3]</td><td>valid</td><td>[256,128]</td><td>30</td><td>62.5%</td><td>2.22</td><td>🥈</td></tr>
+          <tr class="bad"><td>6</td><td>128</td><td>[32,64]</td><td>[3,3]</td><td>valid</td><td>[256,128]</td><td>50</td><td>51.3%</td><td>3.00</td><td>sobreajuste</td></tr>
+          <tr><td>7</td><td>128</td><td>[32,64]</td><td>[5,3]</td><td>valid</td><td>[256,128]</td><td>50</td><td>52.5%</td><td>3.15</td><td>—</td></tr>
+          <tr class="best"><td>8 <span class="tbl-badge">mejor</span></td><td>128</td><td>[32,64,128]</td><td>[3,3,3]</td><td>valid</td><td>[256,128]</td><td>50</td><td><b>67.5%</b></td><td>3.47</td><td>🏆</td></tr>
+          <tr><td>9</td><td>128</td><td>[32,64,128]</td><td>[5,3,3]</td><td>valid</td><td>[256,128]</td><td>100</td><td>61.3%</td><td>3.66</td><td>sobreajuste</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="minihead reveal" style="margin-top:44px">Qué aprendimos de la tabla</div>
+    <div class="concl" style="margin-top:14px">
+      <div class="ccard reveal" style="border-top-color:var(--blue)"><div class="ic">▤</div><h4>3 capas &gt; 2 capas</h4><p>Sumar un tercer bloque conv <code>[32,64,128]</code> fue lo que más subió el accuracy: aprende patrones más jerárquicos. La mejor prueba (67.5%) lo usa.</p></div>
+      <div class="ccard reveal d1" style="border-top-color:var(--amber)"><div class="ic">◱</div><h4>padding "valid" &gt; "same"</h4><p>Con <code>valid</code> la imagen se reduce sola, sin rellenar con ceros artificiales. Dio mejores resultados que <code>same</code>.</p></div>
+      <div class="ccard reveal d2" style="border-top-color:var(--red)"><div class="ic">↯</div><h4>Más épocas ≠ mejor</h4><p>Pasar de 50 a 100 épocas <b>empeoró</b> (prueba 6 y 9): la red empieza a memorizar el entrenamiento. Es <b>sobreajuste</b>.</p></div>
+      <div class="ccard reveal d3" style="border-top-color:var(--teal)"><div class="ic">◈</div><h4>512×512 fue un error</h4><p>Imágenes enormes = millones de parámetros y aprendizaje pobre (47.5%). Bajar a 128 fue clave.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ RESULTADOS ============ -->
+<section id="resultados">
+  <span class="secnum">04</span>
+  <div class="wrap">
+    <div class="eyebrow reveal">Resultados · qué logró el Modelo 1</div>
+    <h2 class="reveal d1" style="font-size:clamp(2rem,5vw,3.2rem);max-width:20ch">67,5% de aciertos, y un claro sobreajuste</h2>
+
+    <div class="result reveal d2" style="margin-top:36px">
+      <div class="metric"><div class="v" style="color:var(--teal)">67.5%</div><div class="l">mejor accuracy (val)</div></div>
+      <div class="metric"><div class="v">4</div><div class="l">clases (faltan 4)</div></div>
+      <div class="metric"><div class="v">[32,64,128]</div><div class="l">arquitectura ganadora</div></div>
+      <div class="metric"><div class="v">🐱 0.89</div><div class="l">recall de Gatos (la más fácil)</div></div>
+    </div>
+
+    <!-- matriz + historial -->
+    <div class="fig2" style="margin-top:40px">
+      <div class="figcard reveal d1">
+        <img src="matriz_confusion.png" alt="Matriz de confusión: filas real, columnas predicho, para Gatos, Aves, Caballos y Tortugas" loading="lazy" />
+        <div class="cap">Matriz de confusión (corrida de 61.3%). La <b>diagonal</b> son los aciertos. Se ve que <b>Aves</b> se confunde seguido con Gatos.</div>
+      </div>
+      <div class="figcard reveal d2">
+        <img src="historial.png" alt="Curvas de entrenamiento: loss y accuracy de train vs validación a lo largo de las épocas" loading="lazy" />
+        <div class="cap">Entrenamiento. El <b style="color:#2347d9">train</b> llega a 100% pero la <b style="color:#d6304a">validación</b> se planta en ~61% y su loss <b>sube</b>: eso es sobreajuste.</div>
+      </div>
+    </div>
+
+    <div class="panel reveal" style="margin-top:30px;border-top:4px solid var(--red)">
+      <h3>Leer el sobreajuste <span class="tg">lo importante</span></h3>
+      <p style="color:var(--ink-soft);max-width:82ch">Mirá las curvas: el <b>error de entrenamiento cae a cero</b> y el accuracy de train llega al 100%, pero el <b>error de validación en vez de bajar, sube</b>. Eso significa que la red se está <b>aprendiendo de memoria</b> las fotos de entrenamiento en lugar de aprender qué es un gato o un ave. <span class="hl">La causa principal es que tenemos pocas imágenes (100 por clase)</span>: con tan pocos ejemplos, memorizar es más fácil que generalizar.</p>
+    </div>
+
+    <!-- predicciones + inferencia -->
+    <div class="minihead reveal" style="margin-top:50px">El punto 5 de la consigna: ingresar una imagen y ver la predicción</div>
+    <div class="exgrid" style="align-items:start;margin-top:14px">
+      <div class="figcard reveal d1">
+        <img src="predicciones.png" alt="10 imágenes de validación con su clase real y la predicha, marcadas en verde si acierta y rojo si falla" loading="lazy" />
+        <div class="cap">10 ejemplos de validación: <b style="color:green">verde</b> = acertó, <b style="color:#d6304a">rojo</b> = falló. Se ve la imagen de entrada y la predicción, como pide la consigna.</div>
+      </div>
+      <div class="reveal d2">
+        <div class="code">
+          <div class="bar"><i style="background:#ff5f56"></i><i style="background:#ffbd2e"></i><i style="background:#27c93f"></i><span class="t">tp_4/addons/functions.py · inferencia</span></div>
+          <pre><code><span class="ln"><span class="tok-c"># le paso una imagen y me dice qué clase es</span></span>
+<span class="ln">y_pred = model.<span class="tok-f">predict</span>(x_test[:<span class="tok-n">10</span>])</span>
+<span class="ln">clase = np.<span class="tok-f">argmax</span>(y_pred, axis=<span class="tok-n">1</span>)  <span class="tok-c"># la más alta</span></span>
+<span class="ln"></span>
+<span class="ln"><span class="tok-k">for</span> i <span class="tok-k">in</span> <span class="tok-f">range</span>(<span class="tok-n">10</span>):</span>
+<span class="ln">  plt.<span class="tok-f">imshow</span>(x_test[i], cmap=<span class="tok-s">"gray"</span>)  <span class="tok-c"># muestra</span></span>
+<span class="ln">  acerto = clase[i] == real[i]</span>
+<span class="ln">  color = <span class="tok-s">"green"</span> <span class="tok-k">if</span> acerto <span class="tok-k">else</span> <span class="tok-s">"red"</span></span>
+<span class="ln">  plt.<span class="tok-f">title</span>(<span class="tok-s">f"Real: {clases[real[i]]}\n"</span></span>
+<span class="ln">            <span class="tok-s">f"Pred: {clases[clase[i]]}"</span>, color=color)</span></code></pre>
+        </div>
+        <div class="codenote"><span class="b">i</span><span>La predicción se lee con <code>argmax</code>: entre las 4 probabilidades del softmax, gana la más alta. Esa es la clase que la red “ve” en la imagen.</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ TRANSFER LEARNING ============ -->
+<section id="transfer" style="background:var(--paper-2)">
+  <span class="secnum">05</span>
+  <div class="wrap">
+    <div class="ex-head reveal">
+      <div style="display:flex;align-items:flex-end;gap:20px">
+        <div class="ex-num" style="color:var(--violet)">2</div>
+        <div>
+          <span class="ex-pill wip">Modelo 2 · en desarrollo</span>
+          <h2 class="ex-title" style="margin-top:10px">Transfer Learning: pararse sobre hombros de gigantes</h2>
+        </div>
+      </div>
+    </div>
+
+    <p class="reveal d1" style="max-width:74ch;color:var(--ink-soft);margin-bottom:20px">
+      La consigna pide un <b>segundo modelo</b> usando <b>Transfer Learning</b>: en vez de entrenar todo desde cero, se aprovecha una red gigante <b>ya entrenada</b> con millones de fotos (ResNet50, MobileNetV2 o EfficientNet) y sólo se le enseña a distinguir <em>nuestras</em> clases. <b style="color:var(--violet)">Esta parte todavía la tenemos que implementar</b> — acá va el plan.
+    </p>
+
+    <div class="simple">
+      <div class="scard reveal" style="border-top:4px solid var(--violet)">
+        <div class="tag" style="color:var(--violet)">La idea, fácil</div>
+        <h4>Reutilizar el ojo, cambiar la decisión</h4>
+        <p>Una red preentrenada ya sabe detectar bordes, texturas y formas (aprendió mirando millones de imágenes). Eso se llama <span class="hl">base convolucional</span> y la dejamos <b>congelada</b> (no se re-entrena).</p>
+        <p>🎓 <b>Como un experto que cambia de tema:</b> alguien que ya sabe mirar fotos no tiene que aprender a ver de nuevo; sólo aprende <b>qué</b> mirar para nuestras 8 clases. Le ponemos encima una <b>cabeza nueva</b> (unas capas densas) y entrenamos sólo eso.</p>
+      </div>
+      <div class="scard reveal d1" style="border-top:4px solid var(--teal)">
+        <div class="tag" style="color:var(--teal)">Por qué conviene</div>
+        <h4>Mucho mejor con pocos datos</h4>
+        <p>Justo nuestro problema del Modelo 1 fue el <b>sobreajuste por pocas imágenes</b>. Transfer learning es la solución típica: como la base ya viene aprendida, con <span class="hl">pocos datos propios alcanza</span> para lograr buena precisión.</p>
+        <p>Después se puede hacer un <b>fine-tuning</b>: descongelar las últimas capas de la base y ajustarlas suavemente a nuestras fotos, para exprimir un poco más de precisión.</p>
+      </div>
+    </div>
+
+    <div class="minihead reveal" style="margin-top:46px">El plan, en pasos</div>
+    <div class="algo" style="margin-top:20px">
+      <div class="astep reveal"><h4>Elegir la base</h4><p>Un modelo preentrenado (ej. <code>MobileNetV2</code>), cargado con sus pesos de ImageNet, sin la capa final.</p></div>
+      <div class="astep reveal d1"><h4>Congelar</h4><p><code>base.trainable = False</code>: la base no aprende, sólo aporta su “ojo” ya entrenado.</p></div>
+      <div class="astep reveal d2"><h4>Cabeza nueva</h4><p>Encima: <code>GlobalAveragePooling</code> + densa + <code>softmax</code> de <b>8</b> salidas (nuestras clases).</p></div>
+      <div class="astep reveal"><h4>Entrenar la cabeza</h4><p>Sólo se ajustan las capas nuevas. Rápido y con poco riesgo de sobreajuste.</p></div>
+      <div class="astep reveal d1"><h4>Fine-tuning</h4><p>Descongelar las últimas capas de la base y entrenar con un learning rate chico para afinar.</p></div>
+      <div class="astep reveal d2"><h4>Comparar</h4><p>Medir accuracy contra el Modelo 1 y ver cuánto ayudó el preentrenamiento.</p></div>
+    </div>
+
+    <div class="panel reveal" style="margin-top:30px;border-top:4px dashed var(--violet)">
+      <h3>Estado de esta parte <span class="tg">honestidad</span></h3>
+      <p style="color:var(--ink-soft);max-width:82ch">Todavía <b>no está implementada en el código</b>. Es lo principal que falta para cerrar el TP, junto con pasar de 4 a 8 clases. La estructura ya la tenemos pensada y encaja con lo que hicimos: reutilizamos <code>cargar_imagenes</code>, <code>entrenar</code> y <code>evaluar</code>, y sólo cambia cómo se construye el modelo. <span class="hl">Lo dejamos planteado para ser transparentes sobre qué está hecho y qué no.</span></p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ AYUDA MEMORIA ============ -->
+<section id="ayuda">
+  <span class="secnum">06</span>
+  <div class="wrap">
+    <div class="eyebrow reveal">Ayuda memoria · para no quedarte trabado</div>
+    <h2 class="reveal d1" style="font-size:clamp(2rem,5vw,3.2rem);max-width:20ch">Lo que hay que tener claro (en palabras fáciles)</h2>
+    <p class="reveal d2" style="max-width:60ch;color:var(--ink-soft);margin-top:18px">Si te perdés con alguna palabra, acá está cada una explicada como si se la contaras a un amigo que nunca escuchó del tema.</p>
+
+    <div class="minihead reveal" style="margin-top:40px">Cada palabra, en una frase</div>
+    <div class="glossary">
+      <div class="gterm reveal"><b>Convolución</b><p>Deslizar un filtro chiquito por toda la imagen buscando un patrón.</p></div>
+      <div class="gterm reveal d1"><b>Filtro / Kernel</b><p>La ventanita (ej. 3×3) que detecta un patrón. La red aprende muchos.</p></div>
+      <div class="gterm reveal d2"><b>Feature map</b><p>El mapa que dice dónde apareció el patrón que busca un filtro.</p></div>
+      <div class="gterm reveal"><b>MaxPooling</b><p>Achicar quedándose con el valor máximo de cada ventana 2×2.</p></div>
+      <div class="gterm reveal d1"><b>Padding</b><p>"same" rellena el borde y conserva el tamaño; "valid" no rellena y achica.</p></div>
+      <div class="gterm reveal d2"><b>Stride</b><p>De a cuántos píxeles avanza la ventana al deslizarse.</p></div>
+      <div class="gterm reveal"><b>ReLU</b><p>Activación que deja pasar lo positivo y apaga lo negativo.</p></div>
+      <div class="gterm reveal d1"><b>Flatten</b><p>Estirar los mapas 2D en un vector para que entren a las capas densas.</p></div>
+      <div class="gterm reveal d2"><b>Softmax</b><p>Reparte 100% de probabilidad entre las clases. Gana la más alta.</p></div>
+      <div class="gterm reveal"><b>One-hot</b><p>Etiqueta como vector: 1 en la clase correcta, 0 en el resto.</p></div>
+      <div class="gterm reveal d1"><b>Sobreajuste</b><p>La red memoriza el entrenamiento y falla con datos nuevos.</p></div>
+      <div class="gterm reveal d2"><b>Transfer learning</b><p>Reutilizar una red ya entrenada y enseñarle sólo tus clases.</p></div>
+    </div>
+
+    <div class="minihead reveal" style="margin-top:50px">Si el profe te pregunta…</div>
+    <div class="simple" style="grid-template-columns:1fr 1fr">
+      <div class="scard reveal" style="border-top:4px solid var(--blue)">
+        <h4>¿Por qué una CNN y no un perceptrón común?</h4>
+        <p style="color:var(--ink-soft)">Porque en imágenes lo que importa son las <b>formas</b>, no el píxel suelto. La convolución detecta un patrón <b>en cualquier parte</b> de la foto reutilizando el mismo filtro, con muchísimos menos pesos que conectar todos los píxeles a todo.</p>
+      </div>
+      <div class="scard reveal d1" style="border-top:4px solid var(--amber)">
+        <h4>¿Para qué sirve el MaxPooling?</h4>
+        <p style="color:var(--ink-soft)">Para <b>achicar</b> y para dar <b>robustez</b>: si el animal está un poco corrido, el máximo de la zona sigue siendo parecido. Además baja la cantidad de cálculo.</p>
+      </div>
+      <div class="scard reveal" style="border-top:4px solid var(--red)">
+        <h4>¿Cómo se dan cuenta del sobreajuste?</h4>
+        <p style="color:var(--ink-soft)">Cuando el <b>error de entrenamiento baja</b> pero el de <b>validación sube</b> (o se planta). Las curvas se separan: la red mejora con lo que ya vio y empeora con lo nuevo.</p>
+      </div>
+      <div class="scard reveal d1" style="border-top:4px solid var(--violet)">
+        <h4>¿Qué diferencia hay entre los dos modelos?</h4>
+        <p style="color:var(--ink-soft)">El <b>Modelo 1</b> lo entrenamos <b>desde cero</b> (aprende todo con nuestras fotos). El <b>Modelo 2</b> reutiliza una red gigante <b>ya entrenada</b> y sólo le enseñamos la decisión final. El 2 suele ganar cuando hay pocos datos.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CONCLUSIONES ============ -->
+<section id="conclusiones" style="background:var(--paper-2)">
+  <span class="secnum">07</span>
+  <div class="wrap">
+    <div class="eyebrow reveal">Conclusiones y estado del trabajo</div>
+    <h2 class="reveal d1" style="font-size:clamp(2rem,5vw,3.2rem);max-width:18ch;margin-bottom:40px">Lo que aprendimos y lo que falta</h2>
+
+    <div class="concl">
+      <div class="ccard reveal" style="border-top-color:var(--blue)"><div class="ic">◳</div><h4>La CNN aprende a mirar</h4><p>Con conv + pooling la red pasa de píxeles a formas y clasifica animales al 67,5% entrenando desde cero. 3 capas convolucionales fue la clave.</p></div>
+      <div class="ccard reveal d1" style="border-top-color:var(--amber)"><div class="ic">⚙</div><h4>Los hiperparámetros importan</h4><p>Probando de a uno: padding "valid", bajar la resolución a 128 y no pasarse de épocas fueron los que más movieron la aguja.</p></div>
+      <div class="ccard reveal d2" style="border-top-color:var(--red)"><div class="ic">↯</div><h4>Pocos datos = sobreajuste</h4><p>Con 100 fotos por clase la red memoriza. Se ve clarísimo en las curvas de entrenamiento. Es la mayor limitación del Modelo 1.</p></div>
+      <div class="ccard reveal d3" style="border-top-color:var(--violet)"><div class="ic">✦</div><h4>Transfer learning es el próximo paso</h4><p>Reutilizar una red preentrenada es justo lo que ataca el sobreajuste. Es lo que sigue para completar el TP.</p></div>
+    </div>
+
+    <div class="minihead reveal" style="margin-top:56px">Estado según la consigna</div>
+    <div class="status" style="margin-top:14px">
+      <div class="stcard ok reveal"><div class="h"><span class="badge-st ok">hecho</span> División de datos</div><p>Entrenar / validar 80–20, imágenes a gris 128×128.</p></div>
+      <div class="stcard ok reveal d1"><div class="h"><span class="badge-st ok">hecho</span> Modelo 1 (CNN propia)</div><p>Arquitectura desde cero + 9 pruebas documentadas.</p></div>
+      <div class="stcard ok reveal d2"><div class="h"><span class="badge-st ok">hecho</span> Inferencia y visualización</div><p>Muestra la imagen y la predicción (punto 5).</p></div>
+      <div class="stcard wip reveal"><div class="h"><span class="badge-st wip">falta</span> Salida de 8 clases</div><p>Hoy hay 4; faltan sumar las otras 4 categorías.</p></div>
+      <div class="stcard todo reveal d1"><div class="h"><span class="badge-st todo">falta</span> Modelo 2 (Transfer Learning)</div><p>Todavía sin implementar. Es lo principal que queda.</p></div>
+      <div class="stcard wip reveal d2"><div class="h"><span class="badge-st wip">falta</span> Comparación final</div><p>Enfrentar Modelo 1 vs Modelo 2 con las 8 clases.</p></div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="big">¡Gracias!</div>
+  Redes Convolucionales · TP4 · Fundamentos de Redes Neuronales · UNAHUR <br>
+  <span style="opacity:.7">Implementación en Python (Keras / TensorFlow) · <code>tp_4/part_1.py</code> · <code>addons/functions.py</code></span>
+</footer>
+
+<script>
+/* ================= reveal on scroll ================= */
+const io = new IntersectionObserver((entries)=>{
+  entries.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target);} });
+},{threshold:.12});
+document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+
+/* nav hide on scroll down */
+let lastY=0;const nav=document.getElementById('nav');
+addEventListener('scroll',()=>{const y=scrollY;nav.style.transform=(y>lastY&&y>140)?'translateY(-110%)':'none';lastY=y;});
+
+/* ================= progreso + scrollspy + parallax ================= */
+const prog=document.getElementById('progress');
+const secnums=[...document.querySelectorAll('.secnum')];
+addEventListener('scroll',()=>{
+  const h=document.documentElement;
+  const sc=h.scrollTop/((h.scrollHeight-h.clientHeight)||1);
+  if(prog)prog.style.width=(Math.min(sc,1)*100)+'%';
+  secnums.forEach(s=>{const r=s.getBoundingClientRect();s.style.transform=`translateY(${(r.top-innerHeight/2)*-0.05}px)`;});
+},{passive:true});
+
+const cues={
+  hero:['Inicio','TP4: redes convolucionales para clasificar imágenes de animales.'],
+  metodo:['Qué es','Convolución (filtros que buscan patrones) + pooling (achica) + densas que deciden la clase.'],
+  datos:['Datos','Fotos a gris 128×128, 80% entrena / 20% valida. Hoy 4 clases; la consigna pide 8.'],
+  arq:['Arquitectura','CNN desde cero: 3 bloques Conv+Pool [32,64,128] → Flatten → densas → softmax.'],
+  pruebas:['Pruebas','9 experimentos. 3 capas, padding valid e IMG 128 fueron lo mejor. Best: 67.5%.'],
+  resultados:['Resultados','67,5% de accuracy y sobreajuste claro: train al 100%, validación estancada por pocos datos.'],
+  transfer:['Transfer','Modelo 2 (pendiente): reutilizar una red preentrenada, congelar la base y entrenar una cabeza nueva.'],
+  ayuda:['Ayuda memoria','Cada término fácil y las preguntas típicas del profe.'],
+  conclusiones:['Conclusiones','La CNN aprende a mirar; los pocos datos causan sobreajuste; falta Transfer Learning y las 8 clases.']
+};
+const recEl=document.getElementById('recordatorio');
+const recTitle=recEl.querySelector('.rtitle');
+const recBody=recEl.querySelector('.rbody');
+const navLinks=[...document.querySelectorAll('nav ul a')];
+const spy=new IntersectionObserver((es)=>{es.forEach(e=>{if(e.isIntersecting){
+  const id=e.target.id;
+  navLinks.forEach(a=>a.classList.toggle('active',a.getAttribute('href')==='#'+id));
+  if(cues[id]){recTitle.textContent=cues[id][0];recBody.textContent=cues[id][1];}
+}});},{rootMargin:'-45% 0px -45% 0px'});
+document.querySelectorAll('section').forEach(s=>spy.observe(s));
+
+const recToggle=document.getElementById('recToggle');
+let recManual=false,recAuto=false;
+function showRec(v){recEl.classList.toggle('show',v);recToggle.style.display=v?'none':'flex';}
+document.getElementById('recClose').addEventListener('click',()=>{recManual=true;showRec(false);});
+recToggle.addEventListener('click',()=>{recManual=false;showRec(true);});
+addEventListener('scroll',()=>{if(!recAuto&&!recManual&&scrollY>320){recAuto=true;showRec(true);}},{passive:true});
+
+/* ================= pipeline CNN animado (método) ================= */
+const NS='http://www.w3.org/2000/svg';
+const csvg=document.getElementById('cnnNet');
+const stateEl=document.getElementById('netState');
+// stages: [tipo, x, ancho, color, label]
+const STAGES=[
+  {t:'img', x:20,  w:52, col:'#16967a', lab:'imagen'},
+  {t:'map', x:96,  w:44, col:'#2347d9', lab:'conv 32'},
+  {t:'map', x:150, w:34, col:'#e0852a', lab:'pool'},
+  {t:'map', x:196, w:30, col:'#2347d9', lab:'conv 64'},
+  {t:'map', x:238, w:22, col:'#e0852a', lab:'pool'},
+  {t:'map', x:272, w:16, col:'#2347d9', lab:'conv 128'},
+  {t:'col', x:316, w:12, col:'#33405a', lab:'flatten'},
+  {t:'col', x:356, w:12, col:'#2347d9', lab:'densas'},
+  {t:'out', x:404, w:52, col:'#16967a', lab:'softmax'},
+];
+(function buildCNN(){
+  const midY=130;
+  // conexiones tenues entre etapas
+  for(let i=0;i<STAGES.length-1;i++){
+    const a=STAGES[i], b=STAGES[i+1];
+    const l=document.createElementNS(NS,'line');
+    l.setAttribute('x1',a.x+a.w);l.setAttribute('y1',midY);
+    l.setAttribute('x2',b.x);l.setAttribute('y2',midY);
+    l.setAttribute('class','cflow');l.dataset.i=i;csvg.appendChild(l);
+  }
+  STAGES.forEach((s,i)=>{
+    const g=document.createElementNS(NS,'g');
+    g.setAttribute('class','cstage');g.dataset.i=i;
+    if(s.t==='img'||s.t==='out'){
+      const r=document.createElementNS(NS,'rect');
+      r.setAttribute('x',s.x);r.setAttribute('y',midY-s.w/2);
+      r.setAttribute('width',s.w);r.setAttribute('height',s.w);
+      r.setAttribute('rx',5);r.setAttribute('fill','#fffdf7');
+      r.setAttribute('stroke',s.col);r.setAttribute('stroke-width',2);
+      g.appendChild(r);
+      if(s.t==='out'){ // 4 barritas de clase
+        for(let k=0;k<4;k++){
+          const b=document.createElementNS(NS,'rect');
+          b.setAttribute('x',s.x+7);b.setAttribute('y',midY-s.w/2+7+k*11);
+          b.setAttribute('width',[30,16,38,12][k]);b.setAttribute('height',7);
+          b.setAttribute('rx',2);b.setAttribute('fill',s.col);b.setAttribute('opacity',k===2?.95:.35);
+          g.appendChild(b);
+        }
+      }
+    } else if(s.t==='map'){ // pila de 3 cuadrados (feature maps)
+      for(let k=2;k>=0;k--){
+        const r=document.createElementNS(NS,'rect');
+        r.setAttribute('x',s.x+k*4);r.setAttribute('y',midY-s.w/2-k*4);
+        r.setAttribute('width',s.w);r.setAttribute('height',s.w);
+        r.setAttribute('rx',3);r.setAttribute('fill','#fffdf7');
+        r.setAttribute('stroke',s.col);r.setAttribute('stroke-width',1.6);
+        r.setAttribute('opacity',.5+k*.18);
+        g.appendChild(r);
+      }
+    } else { // columna de neuronas
+      for(let k=0;k<6;k++){
+        const c=document.createElementNS(NS,'circle');
+        c.setAttribute('cx',s.x+s.w/2);c.setAttribute('cy',midY-55+k*22);
+        c.setAttribute('r',5);c.setAttribute('fill','#fffdf7');
+        c.setAttribute('stroke',s.col);c.setAttribute('stroke-width',1.6);
+        g.appendChild(c);
+      }
+    }
+    const tx=document.createElementNS(NS,'text');
+    tx.setAttribute('x',s.x+s.w/2);tx.setAttribute('y',215);
+    tx.setAttribute('fill','#6b7791');tx.setAttribute('font-size','8.5');
+    tx.setAttribute('text-anchor','middle');tx.setAttribute('class','lab');
+    tx.textContent=s.lab;g.appendChild(tx);
+    csvg.appendChild(g);
+  });
+})();
+let cbusy=false;
+function csleep(ms){return new Promise(r=>setTimeout(r,ms));}
+function clearCNN(){
+  csvg.querySelectorAll('.cstage').forEach(g=>{g.classList.remove('lit');g.querySelectorAll('rect,circle').forEach(el=>el.style.fill='#fffdf7');});
+  csvg.querySelectorAll('.cflow').forEach(l=>l.classList.remove('on'));
+}
+async function cnnForward(){
+  if(cbusy)return;cbusy=true;clearCNN();
+  const msgs=['entra la foto','busca bordes…','achica','busca texturas…','achica','busca formas…','estira a vector','decide…','¡es un gato! 🐱'];
+  for(let i=0;i<STAGES.length;i++){
+    stateEl.textContent=msgs[i];stateEl.style.color=STAGES[i].col;
+    const g=csvg.querySelector(`.cstage[data-i="${i}"]`);
+    g.classList.add('lit');
+    g.querySelectorAll('rect,circle').forEach(el=>{if(el.getAttribute('stroke'))el.style.fill=STAGES[i].col;});
+    if(i>0){const fl=csvg.querySelector(`.cflow[data-i="${i-1}"]`);if(fl)fl.classList.add('on');}
+    await csleep(480);
+  }
+  stateEl.textContent='clasificado ✓';stateEl.style.color='var(--teal)';
+  cbusy=false;
+}
+document.getElementById('btnFwd').addEventListener('click',cnnForward);
+document.getElementById('btnReset').addEventListener('click',()=>{
+  if(cbusy)return;clearCNN();stateEl.textContent='listo';stateEl.style.color='var(--ink-faint)';
+});
+const methodIO=new IntersectionObserver((es)=>{es.forEach(e=>{if(e.isIntersecting){cnnForward();methodIO.disconnect();}});},{threshold:.4});
+methodIO.observe(csvg);
+
+/* ================= hero background: pilas de feature maps ================= */
+const hn=document.getElementById('heroNet');
+(function heroNet(){
+  let html='';
+  const cols=[{x:150,n:1,s:150,c:'#16967a'},{x:430,n:3,s:100,c:'#2347d9'},{x:680,n:4,s:66,c:'#e0852a'},{x:920,n:5,s:44,c:'#2347d9'},{x:1080,n:6,s:26,c:'#8b2fb0'}];
+  cols.forEach((col,ci)=>{
+    for(let k=0;k<col.n;k++){
+      const off=k*14;
+      html+=`<rect x="${col.x+off}" y="${400-col.s/2-off}" width="${col.s}" height="${col.s}" rx="10" fill="none" stroke="${col.c}" stroke-width="2" opacity="0.16"><animate attributeName="opacity" values="0.06;0.28;0.06" dur="${4+ci}s" repeatCount="indefinite" begin="${ci*0.4+k*0.15}s"/></rect>`;
+    }
+  });
+  hn.innerHTML=html;
+})();
+</script>
+</body>
+</html>
