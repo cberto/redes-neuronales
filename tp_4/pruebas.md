@@ -218,3 +218,56 @@ Accuracy (val) : 67.50%
 Loss (val)     : 3.4651
 
 ---
+
+## PRUEBA 8
+
+```
+CONFIGURACION 8
+KERNEL = [5, 3, 3]
+```
+
+Reporte de Clasificación:
+              precision    recall  f1-score   support
+
+       Gatos       0.65      0.89      0.76        19
+        Aves       0.56      0.56      0.56        18
+    Caballos       0.83      0.50      0.62        20
+    Tortugas       0.71      0.74      0.72        23
+
+    accuracy                           0.68        80
+   macro avg       0.69      0.67      0.66        80
+weighted avg       0.69      0.68      0.67        80
+
+Accuracy (val) : 67.50%
+Loss (val)     : 3.4651
+
+---
+
+
+## PRUEBA 9 - (se agregan todas las clases que subio la cursada)
+
+```
+CONFIGURACION 8
+SE AGREGAN LAS 9 CLASES
+```
+
+Reporte de Clasificación:
+              precision    recall  f1-score   support
+
+       Gatos       0.33      0.29      0.31        24
+        Aves       0.22      0.29      0.25        17
+    Caballos       0.33      0.40      0.36        20
+    Tortugas       0.47      0.44      0.46        18
+     Conejos       0.46      0.59      0.52        22
+ Hipopótamos       0.40      0.27      0.32        22
+      Perros       0.15      0.25      0.19        16
+   Pingüinos       0.11      0.04      0.06        25
+  Serpientes       0.56      0.56      0.56        16
+
+    accuracy                           0.34       180
+   macro avg       0.34      0.35      0.34       180
+weighted avg       0.33      0.34      0.33       180
+
+  Accuracy (val) : 33.89%
+  Loss (val)     : 9.5001
+---

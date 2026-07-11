@@ -125,7 +125,7 @@ def tp4():
     LOSS = "categorical_crossentropy"
 
     # ─── Modelo ───────────────────────────────────────────────────
-    RECUPERAR = True  # True → carga modelo guardado
+    RECUPERAR = False  # True → carga modelo guardado
     NOMBRE_MODELO = "cnn_clasificador"
 
     n_clases = len(CLASES)
