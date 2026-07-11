@@ -1,6 +1,8 @@
 import sys
 import os
+import tensorflow as tf
 import keras
+import numpy as np
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils.helpers import cargar_imagenes, graficar_historial
@@ -14,9 +16,62 @@ from tp_4.addons.functions import (
 )
 
 
-def tp4():
+def _configurar_gpu():
+    """Configura TensorFlow para usar GPU en WSL/Linux. Imprime diagnóstico."""
+    print("\n" + "=" * 60)
+    print("DIAGNÓSTICO DE GPU")
+    print("=" * 60)
 
-    CLASES = ["Gatos", "Aves", "Caballos", "Tortugas"]
+    gpus = tf.config.list_physical_devices("GPU")
+    if gpus:
+        try:
+            for gpu in gpus:
+                tf.config.experimental.set_memory_growth(gpu, True)
+            logical_gpus = tf.config.list_logical_devices("GPU")
+            print(
+                f"  GPU detectada: {len(gpus)} física(s), {len(logical_gpus)} lógica(s)"
+            )
+            details = tf.config.experimental.get_device_details(gpus[0])
+            print(f"  Modelo: {details.get('device_name', 'Desconocido')}")
+            print("  Estado: Usando GPU ✓")
+        except RuntimeError as e:
+            print(f"  Error configurando GPU: {e}")
+            print("  Estado: Usando CPU ✗")
+    else:
+        print("  Estado: No se detectó GPU. Usando CPU 🐢")
+
+        # Diagnóstico adicional para WSL
+        if sys.platform == "linux":
+            try:
+                with open("/proc/version", "r") as f:
+                    es_wsl = "microsoft" in f.read().lower()
+            except:
+                es_wsl = False
+
+            if es_wsl:
+                print("\n  Estás en WSL2. Posibles soluciones:")
+                print("  1. pip install tensorflow[and-cuda]")
+                print("  2. Asegurate de estar en el venv correcto")
+                print("  3. nvidia-smi (si falla, actualizar drivers en Windows)")
+                print("  4. export LD_LIBRARY_PATH=... (ver mensaje de error)")
+
+    print("=" * 60 + "\n")
+
+
+def tp4():
+    _configurar_gpu()
+
+    CLASES = [
+        "Gatos",
+        "Aves",
+        "Caballos",
+        "Tortugas",
+        "Conejos",
+        "Hipopótamos",
+        "Perros",
+        "Pingüinos",
+        "Serpientes"       
+    ]
     IMG_SIZE = 128  # Las originales son 512x512, entran 8 gatos en 64
     MAX_POR_CLASE = 100  # Cuántas imágenes por clase
     VALIDATION_SPLIT = 0.2
@@ -70,7 +125,7 @@ def tp4():
     LOSS = "categorical_crossentropy"
 
     # ─── Modelo ───────────────────────────────────────────────────
-    RECUPERAR = False  # True → carga modelo guardado
+    RECUPERAR = True  # True → carga modelo guardado
     NOMBRE_MODELO = "cnn_clasificador"
 
     n_clases = len(CLASES)
@@ -93,7 +148,7 @@ def tp4():
     # One-hot encoding
     y_train = keras.utils.to_categorical(y_train, num_classes=n_clases)
     y_val = keras.utils.to_categorical(y_val, num_classes=n_clases)
-    
+
     # 2. Construir, entrenar o recuperar modelo
     print("\n[2/5] CONSTRUYENDO / RECUPERANDO MODELO...")
     ruta_modelos = os.path.join(os.path.dirname(os.path.abspath(__file__)), "models")
