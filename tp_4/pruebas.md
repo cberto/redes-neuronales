@@ -219,7 +219,7 @@ Loss (val)     : 3.4651
 
 ---
 
-## PRUEBA 8
+## PRUEBA 9
 
 ```
 CONFIGURACION 8
@@ -229,22 +229,22 @@ KERNEL = [5, 3, 3]
 Reporte de Clasificación:
               precision    recall  f1-score   support
 
-       Gatos       0.65      0.89      0.76        19
-        Aves       0.56      0.56      0.56        18
-    Caballos       0.83      0.50      0.62        20
-    Tortugas       0.71      0.74      0.72        23
+       Gatos       0.65      0.89      0.72        19
+        Aves       0.55      0.56      0.54        18
+    Caballos       0.80      0.50      0.58        20
+    Tortugas       0.70      0.74      0.70        23
 
-    accuracy                           0.68        80
-   macro avg       0.69      0.67      0.66        80
-weighted avg       0.69      0.68      0.67        80
+    accuracy                           0.65        80
+   macro avg       0.67      0.63      0.62        80
+weighted avg       0.67      0.63      0.62        80
 
-Accuracy (val) : 67.50%
-Loss (val)     : 3.4651
+Accuracy (val) : 61.25%
+Loss (val)     : 3.6635
 
 ---
 
 
-## PRUEBA 9 - (se agregan todas las clases que subio la cursada)
+## PRUEBA 10 - (se agregan todas las clases que subio la cursada)
 
 ```
 CONFIGURACION 8
