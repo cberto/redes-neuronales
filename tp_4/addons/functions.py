@@ -20,7 +20,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.metrics import confusion_matrix, classification_report
 import seaborn as sns
-from keras import layers, Sequential, optimizers
+from keras import layers, Sequential, optimizers, applications, Model
 
 
 def construir_cnn(
@@ -114,6 +114,127 @@ def _get_optimizer(name: str, lr: float):
     return opts.get(name.lower(), optimizers.Adam(learning_rate=lr))
 
 
+# ═══════════════════════════════════════════════════════════════════
+#  MODELO 2 · TRANSFER LEARNING
+# ═══════════════════════════════════════════════════════════════════
+# Diccionario con las bases preentrenadas disponibles. Cada una trae:
+#   - la función que la construye (con pesos de ImageNet)
+#   - su propio preprocess_input (cada red normaliza distinto la entrada)
+#
+#   "mobilenet"    → MobileNetV2. Liviana y rápida. Ideal para Mac / CPU.
+#   "resnet"       → ResNet50.   Más pesada y precisa. Ideal con GPU NVIDIA.
+#   "efficientnet" → EfficientNetB0. Buen equilibrio precisión/tamaño (GPU).
+_BASES_PREENTRENADAS = {
+    "mobilenet": (applications.MobileNetV2, applications.mobilenet_v2.preprocess_input),
+    "resnet": (applications.ResNet50, applications.resnet50.preprocess_input),
+    "efficientnet": (applications.EfficientNetB0, applications.efficientnet.preprocess_input),
+}
+
+
+def construir_transfer(
+    input_shape: tuple,
+    n_clases: int,
+    base_name: str = "mobilenet",
+    dense_units: list[int] | None = None,
+    dropout: float = 0.3,
+    optimizer: str = "adam",
+    learning_rate: float = 0.001,
+    loss: str = "categorical_crossentropy",
+):
+    """
+    Construye el Modelo 2 con Transfer Learning:
+
+        entrada → preprocess_input → base preentrenada (CONGELADA)
+        → GlobalAveragePooling → Dense(ReLU) + Dropout → Dense(softmax)
+
+    La base viene entrenada con ImageNet (millones de imágenes), así que ya
+    "sabe mirar". La congelamos (base.trainable = False) y sólo entrenamos la
+    cabeza nueva, adaptada a nuestras clases.
+
+    Devuelve (model, base) — devolvemos también la base para poder
+    descongelarla después en el fine-tuning.
+    """
+    if dense_units is None:
+        dense_units = [128]
+
+    base_name = base_name.lower()
+    if base_name not in _BASES_PREENTRENADAS:
+        print(f"[AVISO] Base '{base_name}' desconocida. Se usa 'mobilenet'.")
+        base_name = "mobilenet"
+    base_fn, preprocess = _BASES_PREENTRENADAS[base_name]
+
+    # 1. Base preentrenada, sin la capa de clasificación de ImageNet
+    base = base_fn(include_top=False, weights="imagenet", input_shape=input_shape)
+    base.trainable = False  # ← CONGELADA: no se re-entrena
+
+    # 2. Armado funcional: entrada → preprocesado propio → base → cabeza nueva
+    inputs = layers.Input(shape=input_shape)
+    x = preprocess(inputs)  # cada modelo normaliza a su manera (espera 0-255)
+    x = base(x, training=False)
+    x = layers.GlobalAveragePooling2D()(x)
+    for u in dense_units:
+        x = layers.Dense(u, activation="relu")(x)
+        x = layers.Dropout(dropout)(x)
+    outputs = layers.Dense(n_clases, activation="softmax", name="output")(x)
+
+    model = Model(inputs, outputs, name=f"transfer_{base_name}")
+
+    opt = _get_optimizer(optimizer, learning_rate)
+    model.compile(optimizer=opt, loss=loss, metrics=["accuracy"])
+
+    print("\n" + "=" * 60)
+    print(f"MODELO 2 · TRANSFER LEARNING  (base: {base_name})")
+    print("=" * 60)
+    print(f"  Base congelada: {len(base.layers)} capas (no se entrenan)")
+    print(f"  Cabeza nueva  : GAP → densas {dense_units} → softmax({n_clases})")
+    model.summary()
+
+    return model, base
+
+
+def fine_tuning(
+    model,
+    base,
+    x_train,
+    y_train,
+    x_val,
+    y_val,
+    epochs: int = 5,
+    batch_size: int = 16,
+    unfreeze: int = 30,
+    learning_rate: float = 1e-5,
+):
+    """
+    Ajuste fino (opcional). Descongela las ÚLTIMAS `unfreeze` capas de la base
+    y las entrena con un learning rate muy chico, para afinar la red a nuestras
+    imágenes sin romper lo que ya sabía. Se hace DESPUÉS de entrenar la cabeza.
+    """
+    print("\n" + "=" * 60)
+    print(f"FINE-TUNING · descongelando las últimas {unfreeze} capas de la base")
+    print("=" * 60)
+
+    base.trainable = True
+    # Congelar todas menos las últimas `unfreeze` capas
+    for capa in base.layers[:-unfreeze]:
+        capa.trainable = False
+
+    # Recompilar (obligatorio tras cambiar trainable) con LR chico
+    model.compile(
+        optimizer=optimizers.Adam(learning_rate=learning_rate),
+        loss="categorical_crossentropy",
+        metrics=["accuracy"],
+    )
+
+    return model.fit(
+        x_train,
+        y_train,
+        epochs=epochs,
+        batch_size=batch_size,
+        validation_data=(x_val, y_val),
+        verbose=1,
+    )
+
+
 def entrenar(model, x_train, y_train, x_val, y_val, epochs, batch_size):
     print(f"\n{'='*60}")
     print(f"ENTRENAMIENTO: {epochs} épocas, batch={batch_size}")
@@ -129,7 +250,7 @@ def entrenar(model, x_train, y_train, x_val, y_val, epochs, batch_size):
     )
 
 
-def evaluar(model, x_test, y_test, clases, output_dir=None):
+def evaluar(model, x_test, y_test, clases, output_dir=None, sufijo=""):
     loss, acc = model.evaluate(x_test, y_test, verbose=0)
     print(f"\n{'='*60}")
     print("EVALUACIÓN")
@@ -168,7 +289,7 @@ def evaluar(model, x_test, y_test, clases, output_dir=None):
     if output_dir is None:
         output_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-    ruta_guardado = os.path.join(output_dir, "matriz_confusion.png")
+    ruta_guardado = os.path.join(output_dir, f"matriz_confusion{sufijo}.png")
     plt.savefig(ruta_guardado, dpi=150, bbox_inches="tight")
     print(f" Matriz de confusión guardada en: {ruta_guardado}")
     plt.show()
@@ -179,7 +300,9 @@ def evaluar(model, x_test, y_test, clases, output_dir=None):
     return loss, acc
 
 
-def mostrar_predicciones(model, x_test, y_test, clases, n_ejemplos=10, output_dir=None):
+def mostrar_predicciones(
+    model, x_test, y_test, clases, n_ejemplos=10, output_dir=None, sufijo=""
+):
     y_pred = model.predict(x_test[:n_ejemplos], verbose=0)
     y_pred_c = np.argmax(y_pred, axis=1)
     y_true_c = np.argmax(y_test[:n_ejemplos], axis=1)
@@ -192,12 +315,15 @@ def mostrar_predicciones(model, x_test, y_test, clases, n_ejemplos=10, output_di
     for i in range(n_ejemplos):
         plt.subplot(n_filas, n_cols, i + 1)
 
-        # Mostrar la imagen (escala de grises)
+        # Mostrar la imagen (gris o color)
         img = x_test[i]
         if img.shape[-1] == 1:
             plt.imshow(img.squeeze(-1), cmap="gray")
         else:
-            plt.imshow(img)
+            # Color: matplotlib espera float en 0-1. Si viene en 0-255
+            # (caso transfer learning), lo escalamos sólo para mostrar.
+            disp = img / 255.0 if img.max() > 1.0 else img
+            plt.imshow(disp.astype("float32"))
 
         acerto = y_pred_c[i] == y_true_c[i]
         color = "green" if acerto else "red"
@@ -211,10 +337,67 @@ def mostrar_predicciones(model, x_test, y_test, clases, n_ejemplos=10, output_di
 
     if output_dir is None:
         output_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    ruta_guardado = os.path.join(output_dir, "predicciones.png")
+    ruta_guardado = os.path.join(output_dir, f"predicciones{sufijo}.png")
     plt.savefig(ruta_guardado, dpi=150, bbox_inches="tight")
     print(f"[INFO] Predicciones guardadas en: {ruta_guardado}")
     plt.show()
+
+
+def predecir_imagen(ruta_imagen, model, clases, mostrar=True):
+    """
+    Inferencia sobre UNA imagen cualquiera (punto 5 de la consigna).
+
+    Se le pasa la RUTA de cualquier imagen: la carga, la adapta a lo que espera
+    el modelo (gris o color y el tamaño), la MUESTRA en pantalla y devuelve la
+    clase predicha con su nivel de confianza.
+
+    Funciona con los dos modelos sin cambiar nada: mira el input del modelo y
+    solo detecta si necesita gris (Modelo 1) o color (Modelo 2, transfer).
+
+    Ejemplo de uso:
+        model = recuperar_modelo("tp_4/models", "transfer_mobilenet")
+        predecir_imagen("mi_foto.jpg", model, CLASES)
+    """
+    from PIL import Image
+
+    # ¿Qué espera el modelo? (alto, ancho, canales)
+    _, alto, ancho, canales = model.input_shape
+    modo = "RGB" if canales == 3 else "L"
+
+    img = Image.open(ruta_imagen).convert(modo)
+    img = img.resize((ancho, alto), Image.Resampling.LANCZOS)
+    arr = np.array(img).astype("float32")
+
+    if canales == 1:
+        arr = arr / 255.0             # Modelo 1: normalizado a 0-1
+        arr = np.expand_dims(arr, -1)  # (H, W) → (H, W, 1)
+    # Modelo 2 (color): se deja en 0-255; el preprocess va adentro de la red.
+
+    x = np.expand_dims(arr, 0)  # batch de 1 imagen: (1, H, W, C)
+
+    probs = model.predict(x, verbose=0)[0]
+    idx = int(np.argmax(probs))
+    clase = clases[idx]
+    confianza = float(probs[idx]) * 100
+
+    print(f"\n→ Predicción: {clase}  ({confianza:.1f}% de confianza)")
+
+    if mostrar:
+        disp = arr.squeeze()
+        if canales == 3 and disp.max() > 1.0:
+            disp = disp / 255.0  # sólo para mostrarla bien
+        plt.figure(figsize=(4.5, 4.5))
+        plt.imshow(disp, cmap="gray" if canales == 1 else None)
+        plt.title(
+            f"Predicción: {clase}  ({confianza:.1f}%)",
+            fontsize=13,
+            fontweight="bold",
+        )
+        plt.axis("off")
+        plt.tight_layout()
+        plt.show()
+
+    return clase, confianza
 
 
 def guardar_modelo(model, directorio, nombre_base):

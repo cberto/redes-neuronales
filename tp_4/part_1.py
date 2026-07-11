@@ -13,6 +13,7 @@ from tp_4.addons.functions import (
     guardar_modelo,
     evaluar,
     mostrar_predicciones,
+    predecir_imagen,
 )
 
 
@@ -58,7 +59,7 @@ def _configurar_gpu():
     print("=" * 60 + "\n")
 
 
-def tp4():
+def tp4(imagen_prueba="./tp_4/test/images.jpeg"):
     _configurar_gpu()
 
     CLASES = [
@@ -125,8 +126,13 @@ def tp4():
     LOSS = "categorical_crossentropy"
 
     # ─── Modelo ───────────────────────────────────────────────────
-    RECUPERAR = False  # True → carga modelo guardado
+    RECUPERAR = True  # True → carga modelo guardado
     NOMBRE_MODELO = "cnn_clasificador"
+
+    # ─── Inferencia (punto 5) ─────────────────────────────────────
+    # La imagen llega por parámetro desde main (así corren los dos modelos
+    # con la misma foto). Si no se pasa, usa la de ./tp_4/test por defecto.
+    IMAGEN_PRUEBA = imagen_prueba
 
     n_clases = len(CLASES)
     input_shape = (IMG_SIZE, IMG_SIZE, 1)  # Siempre escala de grises, 1 canal
@@ -214,5 +220,13 @@ def tp4():
     print(f"  Accuracy (val) : {acc*100:.2f}%")
     print(f"  Loss (val)     : {loss:.4f}")
     print("=" * 70)
+
+    # ── Inferencia sobre la imagen elegida arriba (punto 5) ──────────
+    # predecir_imagen convierte la foto a gris sola (este modelo usa 1 canal),
+    # la muestra en pantalla y escribe la clase predicha con su confianza.
+    print("\n" + "=" * 60)
+    print(f"INFERENCIA SOBRE UNA IMAGEN: {IMAGEN_PRUEBA}")
+    print("=" * 60)
+    predecir_imagen(IMAGEN_PRUEBA, model, CLASES)
 
     return {"model": model, "accuracy": acc, "loss": loss}

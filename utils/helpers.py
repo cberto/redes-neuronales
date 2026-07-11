@@ -778,6 +778,84 @@ def cargar_imagenes(
     return (x_train, y_train), (x_val, y_val)
 
 
+def cargar_imagenes_color(
+    data_dir: str,
+    clases: list[str],
+    target_size: int,
+    max_por_clase: int | None = None,
+    validation_split: float = 0.2,
+    random_seed: int = 42,
+) -> tuple:
+    """
+    Igual que cargar_imagenes() pero en COLOR (RGB, 3 canales) y SIN normalizar
+    (deja los píxeles en 0-255). Es la que necesita el Modelo 2 (transfer
+    learning): los modelos preentrenados esperan 3 canales y aplican su propio
+    preprocess_input adentro de la red, que asume la entrada en 0-255.
+
+    Retorna
+    -------
+    (x_train, y_train), (x_val, y_val)
+    """
+    from PIL import Image
+
+    target_hw = (target_size, target_size)
+    todas_imgs = []
+    todas_etqs = []
+    extensiones = (".png", ".jpg", ".jpeg", ".bmp", ".gif")
+
+    for idx, cls_nombre in enumerate(clases):
+        carpeta = os.path.join(data_dir, cls_nombre)
+        if not os.path.isdir(carpeta):
+            print(f"[AVISO] Carpeta '{cls_nombre}' no existe. Se saltea.")
+            continue
+
+        archivos = sorted(
+            [f for f in os.listdir(carpeta) if f.lower().endswith(extensiones)]
+        )
+        if max_por_clase is not None:
+            archivos = archivos[:max_por_clase]
+
+        print(f"  [{cls_nombre}] ({len(archivos)} imgs)")
+
+        for nombre in archivos:
+            try:
+                ruta = os.path.join(carpeta, nombre)
+                img = Image.open(ruta)
+
+                # Forzar color RGB (3 canales)
+                if img.mode != "RGB":
+                    img = img.convert("RGB")
+
+                img = img.resize(target_hw, Image.Resampling.LANCZOS)
+
+                # SIN normalizar: se dejan los píxeles en 0-255
+                arr = np.array(img).astype("float32")  # (H, W, 3)
+
+                todas_imgs.append(arr)
+                todas_etqs.append(idx)
+            except Exception as e:
+                print(f"    [ERROR] {nombre}: {e}")
+
+    if not todas_imgs:
+        raise ValueError("No se cargó ninguna imagen.")
+
+    x = np.array(todas_imgs)
+    y = np.array(todas_etqs)
+
+    np.random.seed(random_seed)
+    indices = np.random.permutation(len(x))
+    x, y = x[indices], y[indices]
+
+    split = int(len(x) * (1 - validation_split))
+    x_train, x_val = x[:split], x[split:]
+    y_train, y_val = y[:split], y[split:]
+
+    print(f"\n Total: {len(x)} imgs | Train: {len(x_train)} | Val: {len(x_val)}")
+    print(f"  Shape: ({target_size}, {target_size}, 3)  |  Clases: {clases}")
+
+    return (x_train, y_train), (x_val, y_val)
+
+
 def graficar_historial(historia, guardar=None):
     epochs = range(1, len(historia.history["loss"]) + 1)
     plt.figure(figsize=(12, 4))

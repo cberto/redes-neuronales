@@ -5,6 +5,7 @@ from tp_2.part_1 import tp2
 from tp_3.part_1 import tp3
 from tp_3.part_2 import tp3_part_3
 from tp_4.part_1 import tp4
+from tp_4.part_2 import tp4_transfer
 from utils.preparar_datos import descargar
 from utils.helpers import convert_dataset_img
 
@@ -14,8 +15,14 @@ CATEGORIAS = ["cat", "dog"]
 LIMITE = 100
 
 def main():
-    # ── Ejecutar TP4 (parámetros definidos dentro de tp4() en MAYÚSCULAS) ──
-    resultados = tp4()
+    # ── Imagen para probar los DOS modelos con la misma foto (punto 5) ──
+    IMAGEN = "./tp_4/test/images.jpeg"
+
+    # ── Modelo 1 · CNN propia ──
+    resultados = tp4(IMAGEN)
+
+    # ── Modelo 2 · Transfer Learning ──
+    resultados_transfer = tp4_transfer(IMAGEN)
     # descargar(
     #         api_command=API_COMMAND,
     #         dest_dir=DEST_DIR,
