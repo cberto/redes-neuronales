@@ -7,7 +7,6 @@ venv/
 tp_3/models/autoencoder_pokemon.keras
 venv_linux/
 ENV/
-tp_4/models/cnn_clasificador.keras
 .env
 .vscode/
 .idea/

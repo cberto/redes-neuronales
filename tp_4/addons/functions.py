@@ -292,7 +292,8 @@ def evaluar(model, x_test, y_test, clases, output_dir=None, sufijo=""):
     ruta_guardado = os.path.join(output_dir, f"matriz_confusion{sufijo}.png")
     plt.savefig(ruta_guardado, dpi=150, bbox_inches="tight")
     print(f" Matriz de confusión guardada en: {ruta_guardado}")
-    plt.show()
+    if plt.get_backend() != "agg":
+        plt.show()
 
     print("\nReporte de Clasificación:")
     print(classification_report(y_true_c, y_pred_c, target_names=clases))
@@ -340,7 +341,8 @@ def mostrar_predicciones(
     ruta_guardado = os.path.join(output_dir, f"predicciones{sufijo}.png")
     plt.savefig(ruta_guardado, dpi=150, bbox_inches="tight")
     print(f"[INFO] Predicciones guardadas en: {ruta_guardado}")
-    plt.show()
+    if plt.get_backend() != "agg":
+        plt.show()
 
 
 def predecir_imagen(ruta_imagen, model, clases, mostrar=True):
@@ -395,7 +397,8 @@ def predecir_imagen(ruta_imagen, model, clases, mostrar=True):
         )
         plt.axis("off")
         plt.tight_layout()
-        plt.show()
+        if plt.get_backend() != "agg":
+            plt.show()
 
     return clase, confianza
 

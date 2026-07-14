@@ -136,7 +136,8 @@ def roc_curve(data, key_class, condicion_cumplida, path_to_save):
 
     # Guardar y mostrar el gráfico
     plt.savefig(path_to_save)
-    plt.show()
+    if plt.get_backend() != "agg":
+        plt.show()
 
     return np.trapezoid(TPR_array, FPR_array)
 
@@ -362,7 +363,8 @@ def plot_precision_vs_tree_size(node_counts, train_accuracies, test_accuracies, 
 
     plt.tight_layout()
     plt.savefig(path, dpi=300, bbox_inches="tight")
-    plt.show()
+    if plt.get_backend() != "agg":
+        plt.show()
 
     print(f"Gráfico guardado como: {path}")
 
@@ -501,7 +503,8 @@ def plot_perceptron(w, data, error_min, iterations):
     )
     plt.legend(loc="upper left")
     plt.grid(True, linestyle="--", alpha=0.5)
-    plt.show()
+    if plt.get_backend() != "agg":
+        plt.show()
 
 
 def join_group_of_lists(list, group_size):
@@ -883,4 +886,5 @@ def graficar_historial(historia, guardar=None):
     plt.tight_layout()
     if guardar:
         plt.savefig(guardar, dpi=150, bbox_inches="tight")
-    plt.show()
+    if plt.get_backend() != "agg":
+        plt.show()
