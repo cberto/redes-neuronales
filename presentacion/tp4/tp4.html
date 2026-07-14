@@ -623,7 +623,7 @@ nav ul a.active::after{width:100%}
 
     <div class="panel reveal d2" style="margin-top:24px;border-top:4px solid var(--red)">
       <h3>La prueba final: la mejor arquitectura, ahora con las 9 clases <span class="tg">prueba 10</span></h3>
-      <p style="color:var(--ink-soft);max-width:84ch">Tomamos la config ganadora (3 bloques <code>[32,64,128]</code>, padding valid) y la entrenamos con <b>las 9 clases reales</b>. El accuracy <b>se derrumbó de 67,5% a 33,9%</b>: sumar más clases con pocas fotos por clase hizo que el sobreajuste se volviera <b>mucho peor</b>. <span class="hl">Ese derrumbe es exactamente el problema que después resuelve el transfer learning.</span></p>
+      <p style="color:var(--ink-soft);max-width:84ch">Tomamos la config ganadora (3 bloques <code>[32,64,128]</code>, padding valid) y la entrenamos con <b>las 9 clases reales</b>. El accuracy <b>se derrumbó de 67,5% a 38,3%</b>: sumar más clases con pocas fotos por clase hizo que el sobreajuste se volviera <b>mucho peor</b>. <span class="hl">Ese derrumbe es exactamente el problema que después resuelve el transfer learning.</span></p>
     </div>
 
     <div class="minihead reveal" style="margin-top:44px">Qué aprendimos de la tabla</div>
@@ -641,14 +641,14 @@ nav ul a.active::after{width:100%}
   <span class="secnum">04</span>
   <div class="wrap">
     <div class="eyebrow reveal">Resultados · qué logró el Modelo 1</div>
-    <h2 class="reveal d1" style="font-size:clamp(2rem,5vw,3.2rem);max-width:22ch">De 67,5% con 4 clases… a 33,9% con las 9</h2>
+    <h2 class="reveal d1" style="font-size:clamp(2rem,5vw,3.2rem);max-width:22ch">De 67,5% con 4 clases… a 38,3% con las 9</h2>
     <p class="reveal d2" style="max-width:74ch;color:var(--ink-soft);margin-top:16px">
-      En la exploración con 4 clases, la mejor arquitectura llegó a <b>67,5%</b>. Pero al entrenarla con las <b>9 clases reales</b>, el accuracy se derrumbó a <b>33,9%</b>: el sobreajuste se volvió mucho peor. Igual está bastante por encima del azar (que con 9 clases sería 11%).
+      En la exploración con 4 clases, la mejor arquitectura llegó a <b>67,5%</b>. Pero al entrenarla con las <b>9 clases reales</b>, el accuracy se derrumbó a <b>38,3%</b>: el sobreajuste se volvió mucho peor. Igual está bastante por encima del azar (que con 9 clases sería 11%).
     </p>
 
     <div class="result reveal d2" style="margin-top:30px">
-      <div class="metric"><div class="v" style="color:var(--red)">33.9%</div><div class="l">accuracy (val) · 9 clases</div></div>
-      <div class="metric"><div class="v">9.5</div><div class="l">loss (val) · ¡se dispara!</div></div>
+      <div class="metric"><div class="v" style="color:var(--red)">38.3%</div><div class="l">accuracy (val) · 9 clases</div></div>
+      <div class="metric"><div class="v">7.6</div><div class="l">loss (val) · ¡se dispara!</div></div>
       <div class="metric"><div class="v">100%</div><div class="l">train · memoriza todo</div></div>
       <div class="metric"><div class="v">67.5%</div><div class="l">pico previo (sólo 4 clases)</div></div>
     </div>
@@ -656,12 +656,12 @@ nav ul a.active::after{width:100%}
     <!-- matriz + historial -->
     <div class="fig2" style="margin-top:40px">
       <div class="figcard reveal d1">
-        <img src="matriz_confusion.png?v=9clases" alt="Matriz de confusión del Modelo 1 con las 9 clases de animales, accuracy 33,9%" loading="lazy" />
-        <div class="cap">Modelo 1 con 9 clases (33,9%). La <b>diagonal está muy débil</b>: se confunde por todos lados. Fijate el contraste con la del Modelo 2, más abajo.</div>
+        <img src="matriz_confusion.png?v=38" alt="Matriz de confusión del Modelo 1 con las 9 clases de animales, accuracy 38,3%" loading="lazy" />
+        <div class="cap">Modelo 1 con 9 clases (38,3%). La <b>diagonal está muy débil</b>: se confunde por todos lados. Fijate el contraste con la del Modelo 2, más abajo.</div>
       </div>
       <div class="figcard reveal d2">
         <img src="historial.png?v=9clases" alt="Curvas de entrenamiento del Modelo 1 con 9 clases: loss y accuracy de train vs validación" loading="lazy" />
-        <div class="cap">El <b style="color:#2347d9">train</b> llega a 100% pero la <b style="color:#d6304a">validación</b> se planta en ~34% y su loss <b>se dispara a 9,5</b>: sobreajuste extremo.</div>
+        <div class="cap">El <b style="color:#2347d9">train</b> llega a 100% pero la <b style="color:#d6304a">validación</b> se planta abajo (~35%) y su loss <b>se dispara</b>: sobreajuste extremo.</div>
       </div>
     </div>
 
@@ -674,7 +674,7 @@ nav ul a.active::after{width:100%}
     <div class="minihead reveal" style="margin-top:50px">El punto 5 de la consigna: ingresar una imagen y ver la predicción</div>
     <div class="exgrid" style="align-items:start;margin-top:14px">
       <div class="figcard reveal d1">
-        <img src="predicciones.png?v=9clases" alt="10 imágenes de validación con su clase real y la predicha, marcadas en verde si acierta y rojo si falla" loading="lazy" />
+        <img src="predicciones.png?v=38" alt="10 imágenes de validación con su clase real y la predicha, marcadas en verde si acierta y rojo si falla" loading="lazy" />
         <div class="cap">10 ejemplos de validación: <b style="color:green">verde</b> = acertó, <b style="color:#d6304a">rojo</b> = falló. Se ve la imagen de entrada y la predicción, como pide la consigna.</div>
       </div>
       <div class="reveal d2">
@@ -861,14 +861,14 @@ nav ul a.active::after{width:100%}
           <tr><th>Modelo</th><th>Cómo aprende</th><th>Params entrenados</th><th>Accuracy (val)</th><th>Generalización</th></tr>
         </thead>
         <tbody>
-          <tr class="bad"><td><b>1 · CNN propia</b></td><td>desde cero</td><td>~millones (toda la red)</td><td><b>33.9%</b> <span style="color:var(--ink-faint)">(9 clases)</span></td><td>sobreajusta feo (val loss 9,5)</td></tr>
+          <tr class="bad"><td><b>1 · CNN propia</b></td><td>desde cero</td><td>~millones (toda la red)</td><td><b>38.3%</b> <span style="color:var(--ink-faint)">(9 clases)</span></td><td>sobreajusta feo (loss altísimo)</td></tr>
           <tr class="best"><td><b>2 · Transfer</b> <span class="tbl-badge" style="background:var(--violet)">ganador</span></td><td>base ImageNet + cabeza nueva</td><td>165 mil (sólo la cabeza)</td><td><b>92.8%</b> <span style="color:var(--ink-faint)">(9 clases)</span></td><td>generaliza (val se mantiene)</td></tr>
         </tbody>
       </table>
     </div>
     <div class="panel reveal" style="margin-top:24px;border-top:4px solid var(--violet)">
       <h3>La conclusión del trabajo <span class="tg">para la defensa</span></h3>
-      <p style="color:var(--ink-soft);max-width:84ch">Con el <b>mismo problema</b> (las 9 clases) y la <b>misma máquina</b>, el transfer learning pasó de <b>33,9% a 92,8%</b> — casi <b>triplica</b> el acierto de la CNN propia, y encima entrenando <b>muchísimos menos parámetros</b> (165 mil vs millones). La razón es justo la que veníamos diciendo: al reutilizar una base ya entrenada con millones de imágenes, <b>no necesita muchos datos propios</b> y por eso <b>no cae en el sobreajuste</b> que hundía al Modelo 1. <span class="hl">La diferencia la hace pararse sobre hombros de gigantes.</span></p>
+      <p style="color:var(--ink-soft);max-width:84ch">Con el <b>mismo problema</b> (las 9 clases) y la <b>misma máquina</b>, el transfer learning pasó de <b>38,3% a 92,8%</b> — casi <b>triplica</b> el acierto de la CNN propia, y encima entrenando <b>muchísimos menos parámetros</b> (165 mil vs millones). La razón es justo la que veníamos diciendo: al reutilizar una base ya entrenada con millones de imágenes, <b>no necesita muchos datos propios</b> y por eso <b>no cae en el sobreajuste</b> que hundía al Modelo 1. <span class="hl">La diferencia la hace pararse sobre hombros de gigantes.</span></p>
     </div>
   </div>
 </section>
@@ -959,7 +959,7 @@ nav ul a.active::after{width:100%}
       <div class="ccard reveal" style="border-top-color:var(--blue)"><div class="ic">◳</div><h4>La CNN aprende a mirar</h4><p>Con conv + pooling la red pasa de píxeles a formas. Entrenando desde cero llegó al 67,5% con 4 clases, pero con las 9 se le complica por falta de datos.</p></div>
       <div class="ccard reveal d1" style="border-top-color:var(--amber)"><div class="ic">⚙</div><h4>Los hiperparámetros importan</h4><p>Probando de a uno: padding "valid", bajar la resolución a 128 y no pasarse de épocas fueron los que más movieron la aguja.</p></div>
       <div class="ccard reveal d2" style="border-top-color:var(--red)"><div class="ic">↯</div><h4>Pocos datos = sobreajuste</h4><p>Con 100 fotos por clase la red memoriza. Se ve clarísimo en las curvas de entrenamiento. Es la mayor limitación del Modelo 1.</p></div>
-      <div class="ccard reveal d3" style="border-top-color:var(--violet)"><div class="ic">✦</div><h4>Transfer learning ganó por lejos</h4><p>Reutilizar una red preentrenada atacó justo el sobreajuste: 92,8% contra 33,9% del Modelo 1 (mismas 9 clases), entrenando muchísimos menos parámetros.</p></div>
+      <div class="ccard reveal d3" style="border-top-color:var(--violet)"><div class="ic">✦</div><h4>Transfer learning ganó por lejos</h4><p>Reutilizar una red preentrenada atacó justo el sobreajuste: 92,8% contra 38,3% del Modelo 1 (mismas 9 clases), entrenando muchísimos menos parámetros.</p></div>
     </div>
 
     <div class="minihead reveal" style="margin-top:56px">Estado según la consigna</div>
@@ -969,7 +969,7 @@ nav ul a.active::after{width:100%}
       <div class="stcard ok reveal d2"><div class="h"><span class="badge-st ok">hecho</span> Inferencia y visualización</div><p>Muestra la imagen y la predicción (punto 5).</p></div>
       <div class="stcard ok reveal"><div class="h"><span class="badge-st ok">hecho</span> Modelo 2 (Transfer Learning)</div><p>Entrenado con MobileNetV2: <b>92,8%</b> en las 9 clases.</p></div>
       <div class="stcard ok reveal d1"><div class="h"><span class="badge-st ok">hecho</span> 9 clases</div><p>Gatos, Aves, Caballos, Tortugas, Conejos, Hipopótamos, Perros, Pingüinos, Serpientes.</p></div>
-      <div class="stcard ok reveal d2"><div class="h"><span class="badge-st ok">hecho</span> Comparación final</div><p>Con 9 clases: Modelo 1 (33,9%) vs Modelo 2 (92,8%). Gana el transfer.</p></div>
+      <div class="stcard ok reveal d2"><div class="h"><span class="badge-st ok">hecho</span> Comparación final</div><p>Con 9 clases: Modelo 1 (38,3%) vs Modelo 2 (92,8%). Gana el transfer.</p></div>
     </div>
   </div>
 </section>
@@ -1007,11 +1007,11 @@ const cues={
   datos:['Datos','Fotos 128×128, 80% entrena / 20% valida. 9 clases de animales, salida one-hot.'],
   arq:['Arquitectura','CNN desde cero: 3 bloques Conv+Pool [32,64,128] → Flatten → densas → softmax.'],
   pruebas:['Pruebas','9 experimentos. 3 capas, padding valid e IMG 128 fueron lo mejor. Best: 67.5%.'],
-  resultados:['Resultados','Con 9 clases cae a 33,9%: train al 100% pero val estancada y loss disparado (9,5). Sobreajuste extremo por pocos datos.'],
-  transfer:['Transfer','Modelo 2: base preentrenada congelada + cabeza nueva. Con 9 clases → 92,8%, contra 33,9% del Modelo 1.'],
+  resultados:['Resultados','Con 9 clases cae a 38,3%: train al 100% pero val estancada y loss disparado. Sobreajuste extremo por pocos datos.'],
+  transfer:['Transfer','Modelo 2: base preentrenada congelada + cabeza nueva. Con 9 clases → 92,8%, contra 38,3% del Modelo 1.'],
   dificultades:['Dificultades','Sobreajuste del Modelo 1, balanceo de datos, gris vs color, tamaño de imagen, entrenar en CPU y el fine-tuning delicado.'],
   ayuda:['Ayuda memoria','Cada término fácil y las preguntas típicas del profe.'],
-  conclusiones:['Conclusiones','La CNN propia sobreajusta con pocos datos (33,9% en 9 clases); el transfer learning lo resuelve y llega a 92,8%.']
+  conclusiones:['Conclusiones','La CNN propia sobreajusta con pocos datos (38,3% en 9 clases); el transfer learning lo resuelve y llega a 92,8%.']
 };
 const recEl=document.getElementById('recordatorio');
 const recTitle=recEl.querySelector('.rtitle');
